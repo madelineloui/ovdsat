@@ -1,7 +1,16 @@
 #!/bin/bash
 
+# Loading the required modules
+source /etc/profile
+module load anaconda/2023a-pytorch
+
+# Activate conda env
+source activate test
+module unload anaconda/2023a-pytorch
+module load anaconda/2023a-pytorch
+
 DATA_DIR=data
-backbone=dinov2
+backbone=remoteclip-14 #clip-14 #georsclip-14 #dinov2
 for dataset in simd
 do
     for N in 5 10 30

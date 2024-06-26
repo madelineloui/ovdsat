@@ -1,5 +1,18 @@
 #!/bin/bash
 
+# Loading the required modules
+source /etc/profile
+module load anaconda/2023a-pytorch
+module load cuda/11.6
+
+# Set cuda path
+export CUDA_HOME=/usr/local/pkg/cuda/cuda-11.6
+
+# Activate conda env
+source activate test
+module unload anaconda/2023a-pytorch
+module load anaconda/2023a-pytorch
+
 DATA_DIR=data
 INIT_PROTOTYPES_PATH=run/init_prototypes
 backbone=dinov2
