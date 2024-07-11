@@ -31,11 +31,11 @@ def load_backbone(backbone_type):
     elif backbone_type == 'clip-14':
         model = CLIPModel.from_pretrained("/home/gridsan/manderson/ovdsat/weights/clip-vit-large-patch14").vision_model
     elif backbone_type == 'openclip-32':
-        model, _, _ = open_clip.create_model_and_transforms('ViT-B-32')
+        model, _, _ = open_clip.create_model_and_transforms('ViT-B-32', pretrained='openai')
         model = model.visual
         model.output_tokens = True
     elif backbone_type == 'openclip-14':
-        model, _, _ = open_clip.create_model_and_transforms('ViT-L-14')
+        model, _, _ = open_clip.create_model_and_transforms('ViT-L-14', pretrained='openai')
         model = model.visual
         model.output_tokens = True
     elif backbone_type == 'georsclip-32':
