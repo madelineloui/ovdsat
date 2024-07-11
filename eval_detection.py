@@ -27,7 +27,10 @@ def prepare_model(args):
 
     # Load prototypes and background prototypes
     prototypes = torch.load(args.prototypes_path)
+    print(f'Using object prototypes from {args.prototypes_path}')
     bg_prototypes = torch.load(args.bg_prototypes_path) if args.bg_prototypes_path is not None else None
+    if args.bg_prototypes_path is not None:
+        print(f'Using background prototypes from {args.bg_prototypes_path}')
     model = OVDDetector(prototypes, bg_prototypes, scale_factor=args.scale_factor, backbone_type=args.backbone_type, target_size=args.target_size, classification=args.classification).to(device)
     #model.eval() 
     return model, device
@@ -56,12 +59,40 @@ def process_batch(detections, labels, iouv):
             correct[matches[:, 1].astype(int), i] = True
     return torch.tensor(correct, dtype=torch.bool, device=iouv.device)
 
+def reclassify(labels, sc_cat):
+    """
+    labels: array of numerical labels
+    sc_cat: nested array of indices belonging to each super class
+    """
+    sc_labels = labels.clone()
+    for i, sc in enumerate(sc_cat):
+        for j, label_num in enumerate(labels):
+            if label_num in sc:
+                sc_labels[j] = i
+    return sc_labels
+
 def eval_detection(args, model, val_dataloader, device):
     seen = 0
     iouv = torch.linspace(0.5, 0.95, 10, device=device)  # iou vector for mAP@0.5:0.95
-    nc = val_dataloader.dataset.get_category_number()
-    names = model.classifier.get_categories()
-
+    
+    sc = args.sc
+    # Define superclass categories
+    if sc:
+        if args.dataset == 'simd':
+            names = {
+                0: 'car', 
+                1: 'aircraft',
+                2: 'boat',
+                3: 'others'} 
+            sc_cat = [[2,3,5,7,10,11,13],
+                      [0,1,8,9,12,14],
+                      [4],
+                      [6]]   
+        nc = len(names)
+    else:
+        names = model.classifier.get_categories()
+        nc = val_dataloader.dataset.get_category_number()
+    
     stats = []
     with torch.no_grad():
         for i, batch in tqdm(enumerate(val_dataloader), total=len(val_dataloader), leave=False):
@@ -82,6 +113,8 @@ def eval_detection(args, model, val_dataloader, device):
             for si, pred in enumerate(preds):
                 keep = labels[si] > -1
                 targets = labels[si, keep]
+                if sc:
+                    targets = reclassify(targets, sc_cat) # Reclassify using superclasses
                 nl, npr = targets.shape[0], pred.shape[0]  # number of labels, predictions
                 correct = torch.zeros(npr, len(iouv), dtype=torch.bool, device=device)  # init
                 seen += 1
@@ -91,6 +124,10 @@ def eval_detection(args, model, val_dataloader, device):
                         stats.append((correct, *torch.zeros((2, 0), device=device), targets[:]))
                     continue
                     
+                # Reclassify using superclasses
+                if sc:
+                    pred[:,-1] = reclassify(pred[:,-1], sc_cat)
+                    
                 predn = pred.clone()
                 if nl:
                     tbox = custom_xywh2xyxy(boxes[si, keep, :])  # target boxes
@@ -98,8 +135,13 @@ def eval_detection(args, model, val_dataloader, device):
                     correct = process_batch(predn, labelsn, iouv)
 
                 stats.append((correct, pred[:, 4], pred[:, 5], targets[:]))
+                
+    # Use original categories
+    names = model.classifier.get_categories()
+    nc = val_dataloader.dataset.get_category_number()
 
     stats = [torch.cat(x, 0).cpu().numpy() for x in zip(*stats)]  # to numpy
+    #mp, mr, map50, map, ap_class = 0, 0, 0, 0, 0
     if len(stats) and stats[0].any():
         tp, fp, p, r, f1, ap, ap_class = ap_per_class(*stats, names=names)
         ap50, ap = ap[:, 0], ap.mean(1)  # AP@0.5, AP@0.5:0.95
@@ -117,7 +159,9 @@ def eval_detection(args, model, val_dataloader, device):
 
     if args.save_dir is not None:
         os.makedirs(args.save_dir, exist_ok=True)
-        filename = 'results_{}.txt'.format(args.backbone_type)
+        cat_type = '_sc' if sc else ''
+        filename = f'results_{args.backbone_type}{cat_type}.txt'
+        #filename = 'results_{}.txt'.format(args.backbone_type)
         save_file_path = os.path.join(args.save_dir, filename)
         base_classes, new_classes = get_base_new_classes(args.dataset)
 
@@ -151,6 +195,7 @@ def eval_detection(args, model, val_dataloader, device):
                 mp_new /= len(new_classes)
                 file.write('%22s%11i%11i%11.4g%11.4g%11.4g%11.4g\n' % ('total base', seen, nt.sum(), mp_base, mr_base, map50_base, map_base))
                 file.write('%22s%11i%11i%11.4g%11.4g%11.4g%11.4g\n' % ('total new', seen, nt.sum(), mp_new, mr_new, map50_new, map_new))
+                print(f'wrote file to {save_file_path}')
 
 def main(args):
     print('Setting up evaluation...')
@@ -188,5 +233,6 @@ if __name__ == '__main__':
     parser.add_argument('--scale_factor', nargs='+', type=int, default=2)
     parser.add_argument('--iou_thr', type=float, default=0.2)
     parser.add_argument('--conf_thres', type=float, default=0.001)
+    parser.add_argument('--sc', type=bool, default=False)
     args = parser.parse_args()
     main(args)
