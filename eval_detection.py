@@ -76,6 +76,7 @@ def eval_detection(args, model, val_dataloader, device):
     iouv = torch.linspace(0.5, 0.95, 10, device=device)  # iou vector for mAP@0.5:0.95
     
     sc = args.sc
+    
     # Define superclass categories
     if sc:
         if args.dataset == 'simd':
@@ -113,6 +114,7 @@ def eval_detection(args, model, val_dataloader, device):
             for si, pred in enumerate(preds):
                 keep = labels[si] > -1
                 targets = labels[si, keep]
+                targets_orig = targets.clone()
                 if sc:
                     targets = reclassify(targets, sc_cat) # Reclassify using superclasses
                 nl, npr = targets.shape[0], pred.shape[0]  # number of labels, predictions
@@ -124,23 +126,27 @@ def eval_detection(args, model, val_dataloader, device):
                         stats.append((correct, *torch.zeros((2, 0), device=device), targets[:]))
                     continue
                     
+                predn = pred.clone()
+                
                 # Reclassify using superclasses
                 if sc:
-                    pred[:,-1] = reclassify(pred[:,-1], sc_cat)
+                    predn[:,-1] = reclassify(predn[:,-1], sc_cat)
                     
-                predn = pred.clone()
                 if nl:
                     tbox = custom_xywh2xyxy(boxes[si, keep, :])  # target boxes
                     labelsn = torch.cat((targets[..., None], tbox), 1)  # native-space labels
                     correct = process_batch(predn, labelsn, iouv)
 
-                stats.append((correct, pred[:, 4], pred[:, 5], targets[:]))
+                stats.append((correct, pred[:, 4], pred[:, 5], targets_orig[:]))
                 
     # Use original categories
     names = model.classifier.get_categories()
     nc = val_dataloader.dataset.get_category_number()
 
     stats = [torch.cat(x, 0).cpu().numpy() for x in zip(*stats)]  # to numpy
+    
+    print('stats: ', len(stats))
+    
     #mp, mr, map50, map, ap_class = 0, 0, 0, 0, 0
     if len(stats) and stats[0].any():
         tp, fp, p, r, f1, ap, ap_class = ap_per_class(*stats, names=names)
@@ -233,6 +239,6 @@ if __name__ == '__main__':
     parser.add_argument('--scale_factor', nargs='+', type=int, default=2)
     parser.add_argument('--iou_thr', type=float, default=0.2)
     parser.add_argument('--conf_thres', type=float, default=0.001)
-    parser.add_argument('--sc', type=bool, default=False)
+    parser.add_argument('--sc', type=float, default=0)
     args = parser.parse_args()
     main(args)
