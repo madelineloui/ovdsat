@@ -145,7 +145,7 @@ def extract_clip_features(images, model, backbone_type, tile_size=224):
                     start_i = end_i - tile_size
                 if end_j - start_j < tile_size:
                     start_j = end_j - tile_size
-    
+                
                 # Extract the tile from the original image
                 tile = images[:, :, start_i:end_i, start_j:end_j]
     

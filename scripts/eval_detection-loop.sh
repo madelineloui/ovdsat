@@ -14,9 +14,9 @@ finetune=init_prototypes #init_prototypes or train
 finetune_type=boxes #masks or boxes
 N=10
 INIT_PROTOTYPES_PATH=run/init_prototypes
-sc=True
+sc=1
 
-for backbone in openclip-14 georsclip-14 remoteclip-14 dinov2 clip-14
+for backbone in georsclip-14 remoteclip-14 dinov2 clip-14
 do
     python eval_detection.py \
         --dataset ${dataset} \
