@@ -14,6 +14,7 @@ PATH_CKPT_GEORSCLIP_32 = 'weights/RS5M_ViT-B-32.pt'
 PATH_CKPT_GEORSCLIP_14 = 'weights/RS5M_ViT-H-14.pt'
 PATH_CKPT_REMOTECLIP_32 = 'weights/RemoteCLIP-ViT-B-32.pt'
 PATH_CKPT_REMOTECLIP_14 = 'weights/RemoteCLIP-ViT-L-14.pt'
+PATH_CKPT_clip14_test = '/home/gridsan/manderson/vlm4rs/run/5/checkpoint_17.pt'
 
 def load_backbone(backbone_type):
     '''
@@ -62,6 +63,15 @@ def load_backbone(backbone_type):
         model.load_state_dict(ckpt)
         model = model.visual
         model.output_tokens = True
+    else:
+        # backbone is a new pretrained model
+        model, _, _ = open_clip.create_model_and_transforms('ViT-L-14')
+        ckpt_path = globals()['PATH_CKPT_'+backbone_type]
+        ckpt = torch.load(ckpt_path, map_location="cpu")
+        model.load_state_dict(ckpt)
+        model = model.visual
+        model.output_tokens = True
+        print(f'Using checkpoint {ckpt_path}')
 
     for name, parameter in model.named_parameters():
         parameter.requires_grad = False
