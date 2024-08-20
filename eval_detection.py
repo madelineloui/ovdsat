@@ -93,6 +93,9 @@ def eval_detection(args, model, val_dataloader, device):
     else:
         names = model.classifier.get_categories()
         nc = val_dataloader.dataset.get_category_number()
+        
+    print('names', names)
+    print('nc', nc)
     
     stats = []
     with torch.no_grad():
@@ -110,6 +113,7 @@ def eval_detection(args, model, val_dataloader, device):
             labels = labels.to(device)
 
             preds = model(images, iou_thr=args.iou_thr, conf_thres=args.conf_thres, aggregation=args.aggregation)
+            #print('preds\n', preds)
 
             for si, pred in enumerate(preds):
                 keep = labels[si] > -1

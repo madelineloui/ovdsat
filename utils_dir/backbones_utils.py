@@ -14,7 +14,7 @@ PATH_CKPT_GEORSCLIP_32 = 'weights/RS5M_ViT-B-32.pt'
 PATH_CKPT_GEORSCLIP_14 = 'weights/RS5M_ViT-H-14.pt'
 PATH_CKPT_REMOTECLIP_32 = 'weights/RemoteCLIP-ViT-B-32.pt'
 PATH_CKPT_REMOTECLIP_14 = 'weights/RemoteCLIP-ViT-L-14.pt'
-PATH_CKPT_clip14_test = '/home/gridsan/manderson/vlm4rs/run/5/checkpoint_17.pt'
+PATH_CKPT_clip14_test = '/home/gridsan/manderson/vlm4rs/run/6/checkpoint_10.pt'
 
 def load_backbone(backbone_type):
     '''
