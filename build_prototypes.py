@@ -1,6 +1,3 @@
-
-
-
 '''
 1 - Provide directory with object examples and their segmentation masks
 2 - Create model (CLIP / DINO) to extract features

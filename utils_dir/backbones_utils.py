@@ -14,7 +14,9 @@ PATH_CKPT_GEORSCLIP_32 = 'weights/RS5M_ViT-B-32.pt'
 PATH_CKPT_GEORSCLIP_14 = 'weights/RS5M_ViT-H-14.pt'
 PATH_CKPT_REMOTECLIP_32 = 'weights/RemoteCLIP-ViT-B-32.pt'
 PATH_CKPT_REMOTECLIP_14 = 'weights/RemoteCLIP-ViT-L-14.pt'
-PATH_CKPT_CLIP14_TEST = '/home/gridsan/manderson/train-CLIP/run/test/last_cvt.pth' #'/home/gridsan/manderson/vlm4rs/run/6/checkpoint_10.pt'
+PATH_CKPT_CLIP14_CAP0 = '/home/gridsan/manderson/train-CLIP/run/cap0/model-epoch=33-val_loss=0.99_clip.pth'
+PATH_CKPT_CLIP14_CAP1 = '/home/gridsan/manderson/train-CLIP/run/cap1/model-epoch=45-val_loss=0.79_clip.pth' 
+PATH_CKPT_CLIP14_CAP2 = '/home/gridsan/manderson/train-CLIP/run/cap2/model-epoch=36-val_loss=0.69_clip.pth' 
 
 def load_backbone(backbone_type):
     '''
@@ -63,15 +65,31 @@ def load_backbone(backbone_type):
         model.load_state_dict(ckpt)
         model = model.visual
         model.output_tokens = True
-    elif backbone_type == 'clip-14-test':
+    elif backbone_type == 'clip-14-cap0':
         # backbone is a new pretrained model      
         model = CLIPModel.from_pretrained("/home/gridsan/manderson/ovdsat/weights/clip-vit-large-patch14")
-        #ckpt_path = globals()['PATH_CKPT_'+backbone_type]
-        ckpt = torch.load(PATH_CKPT_CLIP14_TEST, map_location="cpu")
+        ckpt = torch.load(PATH_CKPT_CLIP14_CAP0, map_location="cpu")
         model.load_state_dict(ckpt)
         model = model.vision_model
         model.output_tokens = True
-        print(f'Using checkpoint {PATH_CKPT_CLIP14_TEST}')
+        print(f'Using checkpoint {PATH_CKPT_CLIP14_CAP0}')
+    elif backbone_type == 'clip-14-cap1':
+        # backbone is a new pretrained model      
+        model = CLIPModel.from_pretrained("/home/gridsan/manderson/ovdsat/weights/clip-vit-large-patch14")
+        ckpt = torch.load(PATH_CKPT_CLIP14_CAP1, map_location="cpu")
+        model.load_state_dict(ckpt)
+        model = model.vision_model
+        model.output_tokens = True
+        print(f'Using checkpoint {PATH_CKPT_CLIP14_CAP1}')
+    elif backbone_type == 'clip-14-cap2':
+        # backbone is a new pretrained model      
+        model = CLIPModel.from_pretrained("/home/gridsan/manderson/ovdsat/weights/clip-vit-large-patch14")
+        ckpt = torch.load(PATH_CKPT_CLIP14_CAP2, map_location="cpu")
+        model.load_state_dict(ckpt)
+        model = model.vision_model
+        model.output_tokens = True
+        print(f'Using checkpoint {PATH_CKPT_CLIP14_CAP2}')
+
 
     for name, parameter in model.named_parameters():
         parameter.requires_grad = False
@@ -161,7 +179,9 @@ def extract_clip_features(images, model, backbone_type, tile_size=224):
     
                 # Extract CLIP's features before token pooling
                 #if backbone_type == 'clip-32' or backbone_type == 'clip-14':
-                if 'clip-32' in backbone_type or 'clip-14' in backbone_type:
+                if 'georsclip' in backbone_type or 'remoteclip' in backbone_type:
+                    image_features = model(tile)[-1]
+                elif 'clip-32' in backbone_type or 'clip-14' in backbone_type:
                     image_features = model(tile).last_hidden_state[:, 1:]
                 else:
                     image_features = model(tile)[-1]
