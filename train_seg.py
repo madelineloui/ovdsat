@@ -1,41 +1,67 @@
 from models.seg import CustomSeg
 from datasets.segdataset import SegData
-
-loss = smp.losses.DiceLoss(mode='multiclass')
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-
+import segmentation_models_pytorch as smp
+import torch
 from torch.utils.data import DataLoader
 
-# Example dataset (replace with your own)
-train_dataset = SegmentationDataset(images, masks, transform=transforms.ToTensor())
-train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True)
+def main(args):
 
-# Training loop
-model.train()
-num_epochs = 10
+    loss = smp.losses.DiceLoss(mode='multiclass')
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    
+    # Example dataset (replace with your own)
+    train_data = SegData()
+    train_loader = DataLoader(train_data, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
+    val_data = SegData()
+    train_loader = DataLoader(val_data, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
+    
+    model = CustomSeg(
+        num_classes=args.num_classes,
+        backbone_type=args.backbone_type,
+        segmodel_type=args.segmodel_type
+    )
 
-for epoch in range(num_epochs):
-    epoch_loss = 0.0
-    for images, masks in train_loader:
-        images, masks = images.cuda(), masks.cuda()
+    # Training loop
+    num_epochs = args.epochs
 
-        # Forward pass
-        outputs = model(images)
-        loss = loss_fn(outputs, masks)
+    for epoch in range(num_epochs):
+        epoch_loss = 0.0
+        model.train()
+        for images, masks in train_loader:
+            images, masks = images.cuda(), masks.cuda()
 
-        # Backward pass and optimization
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+            # Forward pass
+            outputs = model(images)
+            loss = loss_fn(outputs, masks)
 
-        epoch_loss += loss.item()
+            # Backward pass and optimization
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-    print(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {epoch_loss:.4f}")
+            epoch_loss += loss.item()
 
-# Eval
-model.eval()
-with torch.no_grad():
-    for images, masks in val_loader:
-        outputs = model(images.cuda())
-        # Use thresholding if 'sigmoid' activation was used
-        preds = (outputs > 0.5).float()
+        print(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {epoch_loss:.4f}")
+
+        # val
+        model.eval()
+        with torch.no_grad():
+            for images, masks in val_loader:
+                outputs = model(images.cuda())
+                # Use thresholding if 'sigmoid' activation was used
+                preds = (outputs > 0.5).float()
+
+if __name__ == '__main__':
+    parser = ArgumentParser()
+    parser.add_argument('--backbone_type', type=str, default='dinov2')
+    parser.add_argument('--segmodel_type', type=str, default='resnet50')
+    parser.add_argument('--epochs', type=int, default=50)
+    parser.add_argument('--batch_size', type=int, default=32)
+    parser.add_argument('--num_workers', type=int, default=16)
+    parser.add_argument('--model_dir', type=str, default='/home/gridsan/manderson/ovdsat/run/seg')
+    parser.add_argument('--exp_name', type=str, default='test0')
+    #parser = TextImageDataModule.add_argparse_args(parser)
+    parser = Trainer.add_argparse_args(parser)
+    args = parser.parse_args()
+
+    main(args)

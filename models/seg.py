@@ -10,6 +10,7 @@ class CustomSeg(torch.nn.Module):
                 num_classes,
                 backbone_type='dinov2',
                 segmodel_type='unet',
+                in_channels=4,
                 target_size=(512,512),
                 ):
         super().__init__()
@@ -18,8 +19,17 @@ class CustomSeg(torch.nn.Module):
         self.backbone_type=backbone_type
         self.segmodel_type=segmodel_type
         
-        bb = load_backbone(self.backbone_type)
-        # TODO freeze bb
+        if resnet in backbone_type:
+            self.bb = smp.encoders.get_encoder(
+                        name=self.backbone_type, 
+                        weights="imagenet", 
+                        in_channels=in_channels
+                        )
+        else:
+            self.bb = load_backbone(self.backbone_type)
+            # Freeze backbone
+            for param in bb.parameters():
+                param.requires_grad = False
         
         if self.segmodel_type=='unet':
             self.model = smp.Unet(classes=self.num_classes, activation=None)
@@ -39,7 +49,8 @@ class CustomSeg(torch.nn.Module):
         del self.model.encoder
         
         def forward(self, images):
-            feats = extract_backbone_features(prepare_image_for_backbone(images, self.backbone_type))
+            prep_images = prepare_image_for_backbone(images, self.backbone_type)
+            feats = extract_backbone_features(images=prep_images, model=self.bb, backbone_type=self.backbone_type)
             logits = self.model(feats)
             return logits
                                               

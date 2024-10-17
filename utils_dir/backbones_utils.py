@@ -8,6 +8,7 @@ import torch.nn.functional as F
 from transformers import CLIPModel
 from huggingface_hub import hf_hub_download
 import open_clip
+import segmentation_models_pytorch as smp
 
 # Paths to the pre-trained models
 PATH_CKPT_GEORSCLIP_32 = 'weights/RS5M_ViT-B-32.pt'
@@ -179,7 +180,7 @@ def extract_clip_features(images, model, backbone_type, tile_size=224):
     
                 # Extract CLIP's features before token pooling
                 #if backbone_type == 'clip-32' or backbone_type == 'clip-14':
-                if 'georsclip' in backbone_type or 'remoteclip' in backbone_type:
+                if 'georsclip' in backbone_type or 'remoteclip' in backbone_type or 'openclip' in backbone_type:
                     image_features = model(tile)[-1]
                 elif 'clip-32' in backbone_type or 'clip-14' in backbone_type:
                     image_features = model(tile).last_hidden_state[:, 1:]
