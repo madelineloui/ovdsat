@@ -56,7 +56,7 @@ def preprocess(image, mask=None, backbone_type='dinov2', target_size=(602, 602),
     if mask is not None:
         m_w, m_h = target_size
         mask = transforms.Resize((m_w//patch_size, m_h//patch_size), interpolation=Image.NEAREST)(mask)
-
+    
     image = transform(image).unsqueeze(0)
 
     return image, mask

@@ -4,7 +4,42 @@ import torch.nn.functional as F
 import torchvision.transforms as T
 from utils_dir.backbones_utils import load_backbone, extract_backbone_features, prepare_image_for_backbone
 import segmentation_models_pytorch as smp
+from pytorch_lightning import LightningModule
 
+# Define LightningModule for model
+class SegModel(LightningModule):
+    def __init__(self, num_classes, backbone_type, segmodel_type, learning_rate=0.001):
+        super(SegmentationModel, self).__init__()
+        self.model = CustomSeg(num_classes=num_classes, backbone_type=backbone_type, segmodel_type=segmodel_type)
+        self.loss_fn = smp.losses.DiceLoss(mode='multiclass')
+        self.learning_rate = learning_rate
+
+    def forward(self, x):
+        return self.model(x)
+
+    def training_step(self, batch, batch_idx):
+        images, masks = batch
+        images, masks = images.cuda(), masks.cuda()  # Moving to GPU if available
+        outputs = self(images)
+        loss = self.loss_fn(outputs, masks)
+        self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True)
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        images, masks = batch
+        images, masks = images.cuda(), masks.cuda()  # Moving to GPU if available
+        outputs = self(images)
+        val_loss = self.loss_fn(outputs, masks)
+        self.log("val_loss", val_loss, on_epoch=True, prog_bar=True)
+        
+        # Threshold predictions for binary segmentation
+        preds = (outputs > 0.5).float()
+        return {"val_loss": val_loss, "preds": preds, "masks": masks}
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
+        return optimizer
+    
 class CustomSeg(torch.nn.Module):
      def __init__(self,
                 num_classes,

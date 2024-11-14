@@ -73,7 +73,7 @@ def init_dataloaders(args):
         val_dataloader = DataLoader(
             val_dataset, 
             batch_size=args.batch_size, 
-            shuffle=False, 
+            shuffle=False,
             num_workers=args.num_workers
         )
 

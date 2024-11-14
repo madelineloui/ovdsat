@@ -2,20 +2,14 @@
 
 # Loading the required modules
 source /etc/profile
-module load anaconda/2023a-pytorch
-module load cuda/11.6
-
-# Set cuda path
-export CUDA_HOME=/usr/local/pkg/cuda/cuda-11.6
+module load anaconda/2023a
 
 # Activate conda env
 source activate test
-module unload anaconda/2023a-pytorch
-module load anaconda/2023a-pytorch
 
 DATA_DIR=data
 INIT_PROTOTYPES_PATH=run/init_prototypes
-backbone=dinov2
+backbone=openclip-14 #georsclip-14 remoteclip-14 dinov2
 
 for dataset in simd
 do
@@ -25,7 +19,7 @@ do
         python train.py \
             --train_root_dir  ${DATA_DIR}/${dataset}/train \
             --val_root_dir  ${DATA_DIR}/${dataset}/train \
-            --save_dir "run/train/boxes/${dataset}_N${N}" \
+            --save_dir "run/train/boxes/${dataset}_N${N}/${backbone}" \
             --train_annotations_file ${DATA_DIR}/${dataset}/train_coco_subset_N${N}.json \
             --val_annotations_file ${DATA_DIR}/${dataset}/train_coco_finetune_val.json \
             --prototypes_path ${INIT_PROTOTYPES_PATH}/boxes/${dataset}_N${N}/prototypes_${backbone}.pt \
@@ -43,4 +37,3 @@ do
             --only_train_prototypes
     done
 done
-
