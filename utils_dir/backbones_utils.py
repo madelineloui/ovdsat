@@ -18,7 +18,14 @@ PATH_CKPT_REMOTECLIP_14 = 'weights/RemoteCLIP-ViT-L-14.pt'
 PATH_CKPT_CLIP14_CAP0 = '/home/gridsan/manderson/train-CLIP/run/cap0/model-epoch=33-val_loss=0.99_clip.pth'
 PATH_CKPT_CLIP14_CAP1 = '/home/gridsan/manderson/train-CLIP/run/cap1/model-epoch=45-val_loss=0.79_clip.pth' 
 PATH_CKPT_CLIP14_CAP2 = '/home/gridsan/manderson/train-CLIP/run/cap2/model-epoch=36-val_loss=0.69_clip.pth' 
-PATH_CKPT_CLIP14_GPT0 = '/home/gridsan/manderson/train-CLIP/run/gpt_n0/test/model-epoch23_clip.pth'
+PATH_CKPT_CLIP14_GPT0_512_EPOCH23 = '/home/gridsan/manderson/train-CLIP/run/gpt_n0/test/model-epoch23_clip.pth'
+PATH_CKPT_CLIP14_GPT0_512_EPOCH50 = '/home/gridsan/manderson/train-CLIP/run/gpt_n0/last_clip.pth'
+PATH_CKPT_CLIP14_GPTe_512_EPOCH26 = '/home/gridsan/manderson/train-CLIP/run/gpt_e/test/model-epoch-26_clip.pth'
+PATH_CKPT_CLIP14_GPTe_512_EPOCH50 = '/home/gridsan/manderson/train-CLIP/run/gpt_e/last_clip.pth'
+PATH_CKPT_CLIP14_GPT0_1024_EPOCH26 = '/home/gridsan/manderson/train-CLIP/run/gpt_n0-1024/test/model-epoch26_clip.pth'
+PATH_CKPT_CLIP14_GPT0_1024_EPOCH50 = '/home/gridsan/manderson/train-CLIP/run/gpt_n0-1024/last_clip.pth'
+PATH_CKPT_CLIP14_GPTe_1024_EPOCH24 = '/home/gridsan/manderson/train-CLIP/run/gpt_e-1024/model-epoch24.pth'
+PATH_CKPT_CLIP14_GPTe_1024_EPOCH50 = '/home/gridsan/manderson/train-CLIP/run/gpt_e-1024/last_clip.pth'
 
 def load_backbone(backbone_type):
     '''
@@ -91,13 +98,62 @@ def load_backbone(backbone_type):
         model = model.vision_model
         model.output_tokens = True
         print(f'Using checkpoint {PATH_CKPT_CLIP14_CAP2}')
-    elif backbone_type == 'clip-14-gpt0':
+    elif backbone_type == 'clip-14-gpt0-512-epoch23':
         model = CLIPModel.from_pretrained("/home/gridsan/manderson/ovdsat/weights/clip-vit-large-patch14")
-        ckpt = torch.load(PATH_CKPT_CLIP14_GPT0, map_location="cpu")
+        ckpt = torch.load(PATH_CKPT_CLIP14_GPT0_512_EPOCH23, map_location="cpu")
         model.load_state_dict(ckpt)
         model = model.vision_model
         model.output_tokens = True
-        print(f'Using checkpoint {PATH_CKPT_CLIP14_GPT0}')
+        print(f'Using checkpoint {PATH_CKPT_CLIP14_GPT0_512_EPOCH23}')
+    elif backbone_type == 'clip-14-gpt0-512-epoch50':
+        model = CLIPModel.from_pretrained("/home/gridsan/manderson/ovdsat/weights/clip-vit-large-patch14")
+        ckpt = torch.load(PATH_CKPT_CLIP14_GPT0_512_EPOCH50, map_location="cpu")
+        model.load_state_dict(ckpt)
+        model = model.vision_model
+        model.output_tokens = True
+        print(f'Using checkpoint {PATH_CKPT_CLIP14_GPT0_512_EPOCH50}')
+    elif backbone_type == 'clip-14-gpte-512-epoch26':
+        model = CLIPModel.from_pretrained("/home/gridsan/manderson/ovdsat/weights/clip-vit-large-patch14")
+        ckpt = torch.load(PATH_CKPT_CLIP14_GPTe_512_EPOCH26, map_location="cpu")
+        model.load_state_dict(ckpt)
+        model = model.vision_model
+        model.output_tokens = True
+        print(f'Using checkpoint {PATH_CKPT_CLIP14_GPTe_512_EPOCH26}')
+    elif backbone_type == 'clip-14-gpte-512-epoch50':
+        model = CLIPModel.from_pretrained("/home/gridsan/manderson/ovdsat/weights/clip-vit-large-patch14")
+        ckpt = torch.load(PATH_CKPT_CLIP14_GPTe_512_EPOCH50, map_location="cpu")
+        model.load_state_dict(ckpt)
+        model = model.vision_model
+        model.output_tokens = True
+        print(f'Using checkpoint {PATH_CKPT_CLIP14_GPTe_512_EPOCH50}')
+    elif backbone_type == 'clip-14-gpt0-1024-epoch26':
+        model = CLIPModel.from_pretrained("/home/gridsan/manderson/ovdsat/weights/clip-vit-large-patch14")
+        ckpt = torch.load(PATH_CKPT_CLIP14_GPT0_1024_EPOCH26, map_location="cpu")
+        model.load_state_dict(ckpt)
+        model = model.vision_model
+        model.output_tokens = True
+        print(f'Using checkpoint {PATH_CKPT_CLIP14_GPT0_1024_EPOCH26}')
+    elif backbone_type == 'clip-14-gpt0-1024-epoch50':
+        model = CLIPModel.from_pretrained("/home/gridsan/manderson/ovdsat/weights/clip-vit-large-patch14")
+        ckpt = torch.load(PATH_CKPT_CLIP14_GPT0_1024_EPOCH50, map_location="cpu")
+        model.load_state_dict(ckpt)
+        model = model.vision_model
+        model.output_tokens = True
+        print(f'Using checkpoint {PATH_CKPT_CLIP14_GPT0_1024_EPOCH50}')
+    elif backbone_type == 'clip-14-gpte-1024-epoch24':
+        model = CLIPModel.from_pretrained("/home/gridsan/manderson/ovdsat/weights/clip-vit-large-patch14")
+        ckpt = torch.load(PATH_CKPT_CLIP14_GPTe_1024_EPOCH24, map_location="cpu")
+        model.load_state_dict(ckpt)
+        model = model.vision_model
+        model.output_tokens = True
+        print(f'Using checkpoint {PATH_CKPT_CLIP14_GPTe_1024_EPOCH24}')
+    elif backbone_type == 'clip-14-gpte-1024-epoch50':
+        model = CLIPModel.from_pretrained("/home/gridsan/manderson/ovdsat/weights/clip-vit-large-patch14")
+        ckpt = torch.load(PATH_CKPT_CLIP14_GPTe_1024_EPOCH50, map_location="cpu")
+        model.load_state_dict(ckpt)
+        model = model.vision_model
+        model.output_tokens = True
+        print(f'Using checkpoint {PATH_CKPT_CLIP14_GPTe_1024_EPOCH50}')
 
 
     for name, parameter in model.named_parameters():

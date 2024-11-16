@@ -225,3 +225,103 @@ class OVDMaskClassifier(OVDBaseClassifier):
             raise ValueError('Invalid aggregation method')
 
         return mask_sim
+    
+"""
+class ZeroShotClassifier(torch.nn.Module):
+     def __init__(self, prototypes, class_names, backbone_type='clip-14', target_size=(602,602), scale_factor=2, min_box_size=5, ignore_index=-1):
+        super().__init__()
+        self.scale_factor = scale_factor
+        self.target_size = target_size
+        self.min_box_size = min_box_size
+        self.ignore_index = ignore_index
+        self.backbone_type = backbone_type
+        self.class_names = class_names
+        
+        if isinstance(self.scale_factor, int):
+            self.scale_factor = [self.scale_factor]
+
+        # Initialize backbone
+        self.backbone = load_backbone(backbone_type)  
+        
+        # Initialize embedding as a learnable parameter
+        self.embedding = torch.nn.Parameter(prototypes)
+        self.num_classes = self.embedding.shape[0]
+        
+    def get_categories(self):
+        return {idx: label for idx, label in enumerate(self.class_names)}
+    
+    def forward(self, images, boxes, text_embed, cls=None, normalize=False, return_cosim=False, aggregation='mean', k=10):
+        '''
+        Args:
+            images (torch.Tensor): Input tensor with shape (B, C, H, W)
+            boxes (torch.Tensor): Box coordinates with shape (B, max_boxes, 4)
+            cls (torch.Tensor): Class labels with shape (B, max_boxes)
+            normalize (bool): Whether to normalize the cosine similarity maps
+            return_cosim (bool): Whether to return the cosine similarity maps
+        '''
+        
+        # Text embed should be all the clip embedded class names
+        # Extract bounding box cropping from images
+        # Resize each crop to 224x224
+        # Get CLIP image embedding of each crop
+        # Get cos sim between image and all embedded class texts and get max to be the predicted class
+        
+        scales = []
+
+        for scale in self.scale_factor:
+            feats = extract_backbone_features(images, self.backbone, self.backbone_type, scale_factor=scale)
+            cosine_sim = self.get_cosim_mini_batch(feats, self.embedding, normalize=normalize)
+            scales.append(cosine_sim)
+
+        cosine_sim = torch.stack(scales).mean(dim=0)
+
+         # Gather similarity values inside each box and compute average box similarity
+        box_similarities = []
+        B = images.shape[0]
+        for b in range(B):
+            image_boxes = boxes[b][:, :4]
+    
+            image_similarities = []
+            count = 0
+            for i, box in enumerate(image_boxes):
+                x_min, y_min, x_max, y_max = box.int()
+                
+                if cls is not None:
+                    if (x_min < 0 or
+                        y_min < 0 or
+                        y_max > self.target_size[0] or
+                        x_max > self.target_size[0] or
+                        y_max - y_min < self.min_box_size or
+                        x_max - x_min < self.min_box_size):
+                        count += 1
+                        cls[b][i] = self.ignore_index   # If invalid box, assign the label to ignore it while computing the loss
+                        image_similarities.append(torch.zeros(self.num_classes, device=images.device))
+                        continue
+                
+                if aggregation == 'mean':
+                    box_sim = cosine_sim[b, :, y_min:y_max, x_min:x_max].mean(dim=[1, 2])
+                elif aggregation == 'max':
+                    _,n,h,w = cosine_sim.shape
+                    box_sim, _ = cosine_sim[b, :, y_min:y_max - 1, x_min:x_max - 1].reshape(n, -1).max(dim=1)
+                elif aggregation == 'topk':
+                    _,n,h,w = cosine_sim.shape
+                    box_sim = cosine_sim[b, :, y_min:y_max - 1, x_min:x_max - 1].reshape(n, -1)
+                    topk = k if k <= box_sim.shape[1] else box_sim.shape[1]
+                    box_sim, _ = box_sim.topk(topk, dim=1)
+                    box_sim = box_sim.mean(dim=1)
+                else:
+                    raise ValueError('Invalid aggregation method')
+                
+                has_nan = torch.isnan(box_sim).any().item()
+                image_similarities.append(box_sim)
+    
+            box_similarities.append(torch.stack(image_similarities))
+    
+        box_similarities = torch.stack(box_similarities)  # Shape: [B, max_boxes, N]
+        
+        if return_cosim:
+            return box_similarities.view(b, -1, self.num_classes), cosine_sim
+
+        # Flatten box_logits and target_labels
+        return box_similarities.view(B, -1, self.num_classes)
+"""

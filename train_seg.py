@@ -10,11 +10,12 @@ def main(args):
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     
     # Example dataset (replace with your own)
-    train_data = SegData()
+    train_data = SegData(args.num_classes, args.backbone_type, args.segmodel_type)
     train_loader = DataLoader(train_data, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
     val_data = SegData()
     train_loader = DataLoader(val_data, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
     
+    '''
     model = CustomSeg(
         num_classes=args.num_classes,
         backbone_type=args.backbone_type,
@@ -50,6 +51,7 @@ def main(args):
                 outputs = model(images.cuda())
                 # Use thresholding if 'sigmoid' activation was used
                 preds = (outputs > 0.5).float()
+        '''
 
 if __name__ == '__main__':
     parser = ArgumentParser()
