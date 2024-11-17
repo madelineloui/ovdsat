@@ -193,6 +193,7 @@ def build_background_prototypes(args, model, device, patch_size):
 
     return category_dict
 
+
 def build_object_prototypes(args, model, init_data, device, patch_size):
     '''
     Build object prototypes by extracting the features containing the objects and averaging them for each class, separately.
@@ -263,6 +264,7 @@ def build_object_prototypes(args, model, init_data, device, patch_size):
     }
     return category_dict
 
+
 def main(args):
     '''
     Main function to build object and background prototypes.
@@ -273,6 +275,7 @@ def main(args):
 
     # Convert COCO annotations to segmentation masks
     init_data_path = os.path.join('data', 'init_data', args.save_dir.split('/')[-1])
+    print(args.annotations_file)
     coco_to_seg(args.annotations_file, args.data_dir, init_data_path)
 
     print('Building prototypes...')
