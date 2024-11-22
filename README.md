@@ -100,6 +100,9 @@ Evaluate the learned prototypes on unsen data:
 bash scripts/eval_detection.sh
 ```
 
+### Backbones
+Add to utils_dir/backbones_utils.py
+
 ### Citation
 If you found our work useful, please cite it as follows:
 ```bibtex
