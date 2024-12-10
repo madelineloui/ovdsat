@@ -168,6 +168,9 @@ def prepare_image_for_backbone(input_tensor, backbone_type):
         input_tensor (torch.Tensor): Input tensor with shape (B, C, H, W)
         backbone_type (str): Backbone type
     '''
+    
+    if input_tensor.shape[1] == 4:
+        input_tensor = input_tensor[:, :3, :, :]  # Discard the alpha channel (4th channel)
 
     # Define mean and std for normalization depending on the backbone type
     mean = torch.tensor([0.485, 0.456, 0.406]).to(input_tensor.device) if 'dinov2' in backbone_type else torch.tensor([0.48145466, 0.4578275, 0.40821073]).to(input_tensor.device)
@@ -279,6 +282,12 @@ def extract_backbone_features(images, model, backbone_type, scale_factor=1):
     if 'dinov2' in backbone_type:
         with torch.no_grad():
             feats = model.forward_features(images)['x_prenorm'][:, 1:]
+    elif 'resnet' in backbone_type:
+        with torch.no_grad():
+            feats = model(images)
+            print(len(feats))
+            for fe in feats:
+                print(fe.shape)
     elif 'clip' in backbone_type:
         feats, _ = extract_clip_features(images, model, backbone_type)
         feats = feats.view(feats.shape[0], -1, feats.shape[-1])

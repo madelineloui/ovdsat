@@ -20,7 +20,7 @@ class DynnetDataModule(pl.LightningDataModule):
         # Setup train and validation datasets
         self.train_data = DynnetData(txt_file=self.train_split, crop_size=self.crop_size)
         self.val_data = DynnetData(txt_file=self.val_split, crop_size=self.crop_size)
-        self.test_data = EvalDynnetData(test_file=self.test_split, crop_size=self.crop_size)
+        self.test_data = DynnetEval(txt_file=self.test_split, crop_size=self.crop_size)
 
     def train_dataloader(self):
         return DataLoader(self.train_data, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=True)
@@ -29,7 +29,7 @@ class DynnetDataModule(pl.LightningDataModule):
         return DataLoader(self.val_data, batch_size=self.batch_size, num_workers=self.num_workers)
 
     def test_dataloader(self):
-        return DataLoader(self.val_data, batch_size=self.batch_size, num_workers=self.num_workers)
+        return DataLoader(self.test_data, batch_size=self.batch_size, num_workers=self.num_workers)
 
 
 class SegData(Dataset):
@@ -77,8 +77,6 @@ class SegData(Dataset):
         stacked = self.composed_transforms(stacked)
         image = stacked[:4,:,:]
         mask = stacked[4:,:,:]
-
-        #image = self.norm(image)
         
         # Normalize image
         mean = torch.mean(image)
@@ -98,7 +96,7 @@ class DynnetData(SegData):
             lines = file.readlines()
             self.samples = [line.strip().split() for line in lines]
     
-    
+'''    
 class DynnetEval(DynnetData):
     def __init__(self, txt_file, crop_size=512):
         super().__init__(txt_file, crop_size=crop_size)
@@ -133,8 +131,57 @@ class DynnetEval(DynnetData):
         return image, mask
     
     def __len__(self):
-        return len(self.total_crops)
+        return self.total_crops
     
     def get_id(self, idx):
         patch_idx = idx // len(self.samples)
         return (self.samples[idx], f'crop {patch_idx}')
+'''
+    
+    
+class DynnetEval(DynnetData):
+    def __init__(self, txt_file, crop_size=512):
+        super().__init__(txt_file, crop_size=crop_size)
+        self.crop_size = crop_size
+
+        # Calculate the total number of crops based on image dimensions
+        self.all_crops = []
+        for img_path, mask_path in self.samples:
+            with rio.open(img_path) as src:
+                height, width = src.height, src.width
+            num_rows = height // crop_size
+            num_cols = width // crop_size
+            for row in range(num_rows):
+                for col in range(num_cols):
+                    self.all_crops.append((img_path, mask_path, row, col))
+
+    def __len__(self):
+        return len(self.all_crops)
+
+    def __getitem__(self, idx):
+        img_path, mask_path, row, col = self.all_crops[idx]
+
+        # Read tifs to numpy with rasterio
+        with rio.open(img_path) as src:
+            im = torch.tensor(src.read()).float()
+        with rio.open(mask_path) as src:
+            lb = torch.tensor((src.read() / 255).astype(int)).float()
+
+        # Calculate crop coordinates
+        start_row = row * self.crop_size
+        start_col = col * self.crop_size
+
+        # Extract the crop
+        image = im[:, start_row:start_row + self.crop_size, start_col:start_col + self.crop_size]
+        mask = lb[:, start_row:start_row + self.crop_size, start_col:start_col + self.crop_size]
+
+        # Normalize image
+        mean = torch.mean(image)
+        std = torch.std(image)
+        image = (image - mean) / std
+
+        return image, mask
+
+    def get_id(self, idx):
+        img_path, _, row, col = self.all_crops[idx]
+        return f"{img_path}, crop ({row}, {col})"

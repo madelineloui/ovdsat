@@ -1,8 +1,10 @@
 import torch
+from argparse import ArgumentParser
 from datasets.segdataset import DynnetDataModule
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger
+from pytorch_lightning import Trainer
 import segmentation_models_pytorch as smp
 from torch.utils.data import DataLoader
 from models.seg import SegModel
@@ -29,7 +31,7 @@ def main(args):
     model = SegModel(num_classes=num_classes, backbone_type=backbone_type, segmodel_type=segmodel_type, learning_rate=learning_rate)
     data_module = DynnetDataModule(train_split=train_split, val_split=val_split, test_split=test_split,
                                     batch_size=batch_size, crop_size=crop_size, num_workers=num_workers)
-
+                
     # Logger: CSV Logger
     logger = CSVLogger(
         save_dir=args.model_dir,  # Base directory for logs
@@ -47,6 +49,8 @@ def main(args):
     
     # Define the PyTorch Lightning Trainer
     trainer = pl.Trainer(
+        logger=logger,
+        callbacks=[checkpoint_callback],
         max_epochs=args.epochs,                # Number of epochs
         gpus=1 if torch.cuda.is_available() else 0,  # Use GPU if available
         precision=16,                 # Use mixed precision for faster training (optional)
@@ -58,8 +62,7 @@ def main(args):
     trainer.fit(model, datamodule=data_module)
 
     # Optionally, evaluate the model on the validation/test set
-    trainer.test(model, datamodule=data_module)
-
+    test_results = trainer.test(model, datamodule=data_module)
 
 if __name__ == '__main__':
     parser = ArgumentParser()
@@ -76,7 +79,6 @@ if __name__ == '__main__':
     parser.add_argument('--num_workers', type=int, default=16)
     parser.add_argument('--model_dir', type=str, default='/home/gridsan/manderson/ovdsat/run/seg')
     parser.add_argument('--exp_name', type=str, default='test0')
-    #parser = TextImageDataModule.add_argparse_args(parser)
     parser = Trainer.add_argparse_args(parser)
     args = parser.parse_args()
 
