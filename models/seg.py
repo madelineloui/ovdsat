@@ -3,12 +3,176 @@ from torch import nn
 import numpy as np
 import torch.nn.functional as F
 import torchvision.transforms as T
-from utils_dir.backbones_utils import load_backbone, extract_backbone_features, prepare_image_for_backbone
+from utils_dir.backbones_utils import load_backbone, extract_backbone_features
 import segmentation_models_pytorch as smp
 from segmentation_models_pytorch.encoders import encoders
 from segmentation_models_pytorch.encoders import get_encoder_names
 from segmentation_models_pytorch.encoders._base import EncoderMixin
+import pytorch_lightning as pl
 from pytorch_lightning import LightningModule
+from sklearn.metrics import accuracy_score, jaccard_score, classification_report, confusion_matrix
+
+def prepare_image_for_backbone(input_tensor, backbone_type):
+    '''
+    Preprocess an image for the backbone model given an input tensor and the backbone type.
+
+    Args:
+        input_tensor (torch.Tensor): Input tensor with shape (B, C, H, W)
+        backbone_type (str): Backbone type
+    '''
+    
+    if input_tensor.shape[1] == 4:
+        input_tensor = input_tensor[:, :3, :, :]  # Discard the alpha channel (4th channel)
+
+    # Define mean and std for normalization depending on the backbone type
+    mean = torch.tensor([0.485, 0.456, 0.406]).to(input_tensor.device) if 'dinov2' in backbone_type else torch.tensor([0.48145466, 0.4578275, 0.40821073]).to(input_tensor.device)
+    std = torch.tensor([0.229, 0.224, 0.225]).to(input_tensor.device) if 'dinov2' in backbone_type else torch.tensor([0.26862954, 0.26130258, 0.27577711]).to(input_tensor.device)
+    
+    # Scale the values to range from 0 to 1
+    input_tensor /= 255.0
+    
+    # Normalize the tensor
+    normalized_tensor = (input_tensor - mean[:, None, None]) / std[:, None, None]
+    
+    if backbone_type == 'dinov2':
+        # Pad height and width to the nearest multiple of 224
+        pad_h = (224 - normalized_tensor.shape[2] % 224) % 224
+        pad_w = (224 - normalized_tensor.shape[3] % 224) % 224
+        normalized_tensor = F.pad(normalized_tensor, (0, pad_w, 0, pad_h), mode="constant", value=0)
+
+    return normalized_tensor
+
+
+class ChangeDetectionSegModel(LightningModule):
+    def __init__(self, num_classes, backbone_type, segmodel_type, learning_rate=0.001, time_series_length=4): #TODO: time_series_length should not be hardcoded
+        super(ChangeDetectionSegModel, self).__init__()
+        self.model = CustomSeg(num_classes=num_classes, backbone_type=backbone_type, segmodel_type=segmodel_type)
+        self.loss_fn = smp.losses.DiceLoss(mode='multiclass')
+        self.learning_rate = learning_rate
+        self.time_series_length = time_series_length
+
+        # Buffers for storing previous frame predictions
+        self.true_label_prev = None
+        self.pred_label_prev = None
+        self.frame_counter = 0
+
+        # Aggregated results across batches for testing
+        self.test_results = {
+            "true_labels_all": [],
+            "pred_labels_all": [],
+            "true_bc_all": [],
+            "pred_bc_all": [],
+            "true_sc_all": [],
+            "pred_sc_all": [],
+        }
+
+    def forward(self, x):
+        return self.model(x)
+
+    def step(self, batch):
+        images, masks = batch
+        masks = torch.argmax(masks, dim=1).long()
+        outputs = self(images)
+        loss = self.loss_fn(outputs, masks)
+        preds = torch.argmax(F.softmax(outputs, dim=1), dim=1)
+        return loss, preds, masks
+
+    def training_step(self, batch, batch_idx):
+        loss, _, _ = self.step(batch)
+        self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True)
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        loss, preds, masks = self.step(batch)
+        self.log("val_loss", loss, on_epoch=True, prog_bar=True)
+        return loss
+
+    def test_step(self, batch, batch_idx):
+        _, preds, masks = self.step(batch)
+
+        # Flatten predictions and true labels for metrics
+        true_labels = masks.flatten().cpu().numpy()
+        pred_labels = preds.flatten().cpu().numpy()
+
+        # Save frame-wise predictions for change detection
+        if self.frame_counter > 0:
+            pred_bc = (self.pred_label_prev != pred_labels)
+            true_bc = (self.true_label_prev != true_labels)
+            self.test_results["pred_bc_all"].extend(pred_bc)
+            self.test_results["true_bc_all"].extend(true_bc)
+
+            pred_sc = pred_labels[true_bc]
+            true_sc = true_labels[true_bc]
+            self.test_results["pred_sc_all"].extend(pred_sc)
+            self.test_results["true_sc_all"].extend(true_sc)
+
+        self.frame_counter += 1
+        if self.frame_counter == self.time_series_length:
+            self.frame_counter = 0
+            self.true_label_prev = None
+            self.pred_label_prev = None
+        else:
+            self.true_label_prev = true_labels
+            self.pred_label_prev = pred_labels
+
+        # Accumulate all predictions and labels for overall metrics
+        self.test_results["true_labels_all"].extend(true_labels)
+        self.test_results["pred_labels_all"].extend(pred_labels)
+
+    def test_epoch_end(self, outputs):
+        # Convert lists to numpy arrays for metric calculations
+        results = {key: np.array(value) for key, value in self.test_results.items()}
+
+        # Helper to calculate IoU for each class
+        def calculate_class_iou(pred, true, num_classes):
+            ious = []
+            for c in range(num_classes):
+                pred_c = pred == c
+                true_c = true == c
+                intersection = np.logical_and(pred_c, true_c).sum()
+                union = np.logical_or(pred_c, true_c).sum()
+                iou = intersection / union if union > 0 else 0.0
+                ious.append(iou)
+            return ious  # Return IoU for all classes
+
+        # Helper to calculate accuracy
+        def calculate_accuracy(pred, true):
+            correct = (pred == true).sum()
+            total = true.size
+            return correct / total
+
+        # Number of classes
+        num_classes = self.model.num_classes
+
+        # Calculate per-class IoUs for BC and SC
+        bc_ious = calculate_class_iou(results["pred_bc_all"], results["true_bc_all"], num_classes=2)  # BC is binary
+        sc_ious = calculate_class_iou(results["pred_sc_all"], results["true_sc_all"], num_classes=num_classes)
+
+        # Calculate mean IoU for BC and SC
+        bc_iou_mean = np.mean(bc_ious)
+        sc_iou_mean = np.mean(sc_ious)
+
+        # Calculate overall IoU (multiclass)
+        overall_ious = calculate_class_iou(results["pred_labels_all"], results["true_labels_all"], num_classes=num_classes)
+        overall_iou_mean = np.mean(overall_ious)
+
+        # Calculate accuracy
+        accuracy = calculate_accuracy(results["pred_labels_all"], results["true_labels_all"])
+
+        # Log metrics
+        self.log("test_bc_iou_mean", bc_iou_mean, prog_bar=True)
+        self.log("test_sc_iou_mean", sc_iou_mean, prog_bar=True)
+        self.log("test_overall_iou_mean", overall_iou_mean, prog_bar=True)
+        self.log("test_accuracy", accuracy, prog_bar=True)
+        self.log("test_scs", (bc_iou_mean + sc_iou_mean) / 2, prog_bar=True)
+
+        # Reset results for next test run
+        self.test_results = {key: [] for key in self.test_results}
+
+    def configure_optimizers(self):
+        return torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
+    
+    
 
 # Define LightningModule for model
 class SegModel(LightningModule):
@@ -60,6 +224,138 @@ class SegModel(LightningModule):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
         return optimizer
 
+'''
+class SegModel(pl.LightningModule):
+    def __init__(self, num_classes, backbone_type, segmodel_type, model_dir, exp_name, learning_rate=0.001):
+        super(SegModel, self).__init__()
+        self.model = CustomSeg(num_classes=num_classes, backbone_type=backbone_type, segmodel_type=segmodel_type)
+        self.loss_fn = smp.losses.DiceLoss(mode='multiclass')
+        self.learning_rate = learning_rate
+        self.num_classes = num_classes
+
+        # Initialize lists to store test results
+        self.true_labels_all = []
+        self.pred_labels_all = []
+        self.true_bc_all = []
+        self.pred_bc_all = []
+        self.true_sc_all = []
+        self.pred_sc_all = []
+        self.true_label_prev = None
+        self.pred_label_prev = None
+        self.scene_counter = 0
+
+    def forward(self, x):
+        return self.model(x)
+
+    def test_step(self, batch, batch_idx):
+        images, labels = batch
+        outputs = self(images)
+
+        # Convert to predictions and targets
+        true_labels = labels.argmax(dim=1).cpu().numpy().flatten()
+        probs = F.softmax(outputs, dim=1)
+        pred_labels = probs.argmax(dim=1).cpu().numpy().flatten()
+
+        self.true_labels_all.extend(true_labels)
+        self.pred_labels_all.extend(pred_labels)
+
+        # Change detection logic
+        if self.scene_counter > 0:
+            pred_bc = (self.pred_label_prev != pred_labels)
+            true_bc = (self.true_label_prev != true_labels)
+            self.pred_bc_all.extend(pred_bc)
+            self.true_bc_all.extend(true_bc)
+
+            pred_sc = pred_labels[true_bc]
+            true_sc = true_labels[true_bc]
+            self.pred_sc_all.extend(pred_sc)
+            self.true_sc_all.extend(true_sc)
+
+        self.scene_counter += 1
+        if self.scene_counter == 24:  # Assuming 24 time series images per scene
+            self.scene_counter = 0
+            self.true_label_prev = None
+            self.pred_label_prev = None
+        else:
+            self.true_label_prev = true_labels
+            self.pred_label_prev = pred_labels
+
+        return {"test_loss": self.loss_fn(outputs, labels)}
+
+    def test_epoch_end(self, outputs):
+        results_file = "test_results.txt"  # Output file for results
+
+        # Calculate test loss
+        avg_test_loss = torch.stack([x["test_loss"] for x in outputs]).mean()
+        self.log("avg_test_loss", avg_test_loss)
+
+        # Calculate metrics
+        accuracy = accuracy_score(self.true_labels_all, self.pred_labels_all)
+        iou_score = jaccard_score(
+            y_true=self.true_labels_all,
+            y_pred=self.pred_labels_all,
+            labels=range(self.num_classes),
+            zero_division=0,
+            average='weighted'
+        )
+        bc_score = jaccard_score(
+            y_true=self.true_bc_all,
+            y_pred=self.pred_bc_all,
+            average='binary'
+        )
+        sc_score = jaccard_score(
+            y_true=self.true_sc_all,
+            y_pred=self.pred_sc_all,
+            labels=range(self.num_classes),
+            zero_division=0,
+            average='weighted'
+        )
+        scs_score = (bc_score + sc_score) / 2
+
+        report = classification_report(
+            self.true_labels_all,
+            self.pred_labels_all,
+            labels=range(self.num_classes),
+            zero_division=0
+        )
+        cm = confusion_matrix(self.true_labels_all, self.pred_labels_all)
+
+        iou_scores_per_class = jaccard_score(
+            self.true_labels_all,
+            self.pred_labels_all,
+            average=None,
+            labels=range(self.num_classes)
+        )
+
+        # Prepare results string
+        results = []
+        results.append(f"Test Loss: {avg_test_loss:.4f}")
+        results.append(f"Accuracy: {accuracy:.4f}")
+        results.append(f"IoU (Jaccard Index): {iou_score:.4f}")
+        results.append(f"Binary Change (BC): {bc_score:.4f}")
+        results.append(f"Semantic Change (SC): {sc_score:.4f}")
+        results.append(f"Semantic Change Segmentation (SCS): {scs_score:.4f}")
+        results.append("\nClassification Report:\n" + report)
+        results.append("\nConfusion Matrix:\n" + str(cm))
+        for i, iou_score in enumerate(iou_scores_per_class):
+            results.append(f"Class {i} IoU: {iou_score:.4f}")
+
+        # Write results to file
+        with open(results_file, "w") as f:
+            f.write("\n".join(results))
+
+        # Optionally print to console as well
+        print("\n".join(results))
+
+        # Clear stored lists for next evaluation
+        self.true_labels_all.clear()
+        self.pred_labels_all.clear()
+        self.true_bc_all.clear()
+        self.pred_bc_all.clear()
+        self.true_sc_all.clear()
+        self.pred_sc_all.clear()
+'''
+
     
 class CustomSeg(torch.nn.Module):
     def __init__(self,
@@ -83,7 +379,7 @@ class CustomSeg(torch.nn.Module):
             )
         else:
             self.bb = load_backbone(self.backbone_type)
-            # Freeze backbone
+            # Freeze encoder backbone
             for param in self.bb.parameters():
                 param.requires_grad = False
         '''
@@ -122,8 +418,9 @@ class CustomSeg(torch.nn.Module):
             self.model = smp.PSPNet(classes=self.num_classes, activation=None)
         '''
         
-        #TODO: freeze encoder
-        #del self.model.encoder  # Remove the encoder if not needed
+        # Freeze encoder backbone
+        for param in self.model.encoder.parameters():
+            param.requires_grad = False
 
     def forward(self, images):
         prep_images = prepare_image_for_backbone(images, self.backbone_type)

@@ -29,7 +29,7 @@ class DynnetDataModule(pl.LightningDataModule):
         return DataLoader(self.val_data, batch_size=self.batch_size, num_workers=self.num_workers)
 
     def test_dataloader(self):
-        return DataLoader(self.test_data, batch_size=self.batch_size, num_workers=self.num_workers)
+        return DataLoader(self.test_data, batch_size=1, num_workers=self.num_workers, shuffle=False)
 
 
 class SegData(Dataset):
@@ -145,6 +145,7 @@ class DynnetEval(DynnetData):
         self.crop_size = crop_size
 
         # Calculate the total number of crops based on image dimensions
+        self.num_crops_per_image = []
         self.all_crops = []
         for img_path, mask_path in self.samples:
             with rio.open(img_path) as src:
@@ -154,6 +155,7 @@ class DynnetEval(DynnetData):
             for row in range(num_rows):
                 for col in range(num_cols):
                     self.all_crops.append((img_path, mask_path, row, col))
+            self.num_crops_per_image.append(num_rows*num_cols)
 
     def __len__(self):
         return len(self.all_crops)

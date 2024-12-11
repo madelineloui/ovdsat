@@ -7,7 +7,7 @@ from pytorch_lightning.loggers import CSVLogger
 from pytorch_lightning import Trainer
 import segmentation_models_pytorch as smp
 from torch.utils.data import DataLoader
-from models.seg import SegModel
+from models.seg import SegModel, ChangeDetectionSegModel
 
 def main(args):
 
@@ -28,7 +28,7 @@ def main(args):
     num_workers = args.num_workers
 
     # Instantiate the model and data module
-    model = SegModel(num_classes=num_classes, backbone_type=backbone_type, segmodel_type=segmodel_type, learning_rate=learning_rate)
+    model = ChangeDetectionSegModel(num_classes=num_classes, backbone_type=backbone_type, segmodel_type=segmodel_type, learning_rate=learning_rate)
     data_module = DynnetDataModule(train_split=train_split, val_split=val_split, test_split=test_split,
                                     batch_size=batch_size, crop_size=crop_size, num_workers=num_workers)
                 
@@ -44,7 +44,8 @@ def main(args):
         filename="{epoch}-{val_loss:.2f}",  # Filename pattern
         monitor="val_loss",  # Metric to monitor
         save_top_k=3,        # Save the best 3 checkpoints only
-        mode="min"           # Minimize the monitored metric
+        mode="min",          # Minimize the monitored metric
+        save_last=True       # Save the last epoch
     )
     
     # Define the PyTorch Lightning Trainer

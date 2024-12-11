@@ -181,6 +181,7 @@ def prepare_image_for_backbone(input_tensor, backbone_type):
     
     # Normalize the tensor
     normalized_tensor = (input_tensor - mean[:, None, None]) / std[:, None, None]
+
     return normalized_tensor
 
 def get_backbone_params(backbone_type):

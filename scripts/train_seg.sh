@@ -1,6 +1,6 @@
 #!/bin/bash
-# SBATCH --gres=gpu:volta:2
-# SBATCH --mem=100G
+#SBATCH --gres=gpu:volta:2
+#SBATCH --mem=100G
 
 # Loading the required modules
 source /etc/profile
@@ -11,7 +11,7 @@ source activate dynnet
 
 N=5
 M=1
-backbone_type=resnet50
+backbone_type=resnet50 #resnet50 / efficientnet-b4 / densenet121 / vgg16_bn / dinov2
 num_classes=7
 segmodel_type=unet
 split_dir=/home/gridsan/manderson/ovdsat/data/monthly_dynnet/splits
