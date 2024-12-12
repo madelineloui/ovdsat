@@ -44,7 +44,7 @@ def prepare_image_for_backbone(input_tensor, backbone_type):
 
 
 class ChangeDetectionSegModel(LightningModule):
-    def __init__(self, num_classes, backbone_type, segmodel_type, learning_rate=0.001, time_series_length=4): #TODO: time_series_length should not be hardcoded
+    def __init__(self, num_classes, backbone_type, segmodel_type, learning_rate=0.001, time_series_length=4):
         super(ChangeDetectionSegModel, self).__init__()
         self.model = CustomSeg(num_classes=num_classes, backbone_type=backbone_type, segmodel_type=segmodel_type)
         self.loss_fn = smp.losses.DiceLoss(mode='multiclass')
@@ -392,18 +392,36 @@ class CustomSeg(torch.nn.Module):
                     "pretrained": True,
                     "depth": 5,
                 },
-            }
-            encoder_wts = None
+            }          
+            self.model = smp.FPN(
+                encoder_name="dinov2",
+                encoder_weights=None,   # Use pretrained weights in DINOv2
+                classes=self.num_classes,
+                activation=None
+            )
+        elif self.backbone_type == 'densenet121':
+            self.model = smp.Unet(
+                encoder_name="densenet121",
+                encoder_weights=None,
+                classes=num_classes,
+                activation=None
+            )
+            state_dict = torch.load("/home/gridsan/manderson/ovdsat/assets/densenet121.pth")
+            self.model.encoder.load_state_dict(state_dict)
         else:
-            encoder_wts = 'imagenet'
-
+            self.model = smp.Unet(
+                encoder_name=backbone_type,
+                encoder_weights='imagenet',
+                classes=self.num_classes,
+                activation=None
+            )
+        '''
         if self.segmodel_type == 'unet':
             self.model = smp.Unet(
                 encoder_name=backbone_type,
                 encoder_weights=encoder_wts,
                 classes=self.num_classes,
                 activation=None)
-        '''
         elif self.segmodel_type == 'unetpp':
             self.model = smp.UnetPlusPlus(classes=self.num_classes, activation=None)
         elif self.segmodel_type == 'fpn':
@@ -456,11 +474,40 @@ class DINOv2Encoder(nn.Module, EncoderMixin):
         for name, module in self.dino_model.named_modules():
             if "block" in name:  # Example: Customize to match the model layers
                 self.hooks.append(module.register_forward_hook(hook_fn))
-
+    '''
     def forward(self, x):
         self.feature_maps = []  # Reset feature maps
         _ = self.dino_model(x)  # Forward pass through DINOv2
         return self.feature_maps[:self._depth]
+    '''
+    
+    def forward(self, x):
+        self.feature_maps = []  # Reset feature maps
+        _ = self.dino_model(x)  # Forward pass through DINOv2
+
+        spatial_features = []
+
+        for i, feature in enumerate(self.feature_maps[:self._depth]):
+            if feature.ndim == 3:  # Sequence embeddings, e.g., [B, SeqLen, Channels]
+                # Remove class token if present (assumes it's the first token)
+                feature = feature[:, 1:, :]  # [B, SeqLen-1, Channels]
+
+                # Calculate spatial dimensions from sequence length
+                grid_size = int((feature.size(1)) ** 0.5)
+                feature = feature.transpose(1, 2).view(
+                    feature.size(0), feature.size(2), grid_size, grid_size
+                )  # [B, Channels, H, W]
+
+            elif feature.ndim == 4:  # Already in spatial format, e.g., [B, C, H, W]
+                pass  # Keep as-is
+
+            # Resize to match expected spatial dimensions (optional)
+            target_size = (x.shape[2] // (2 ** (i + 1)), x.shape[3] // (2 ** (i + 1)))
+            feature = F.interpolate(feature, size=target_size, mode="bilinear", align_corners=False)
+
+            spatial_features.append(feature)
+
+        return spatial_features
 
     def get_stages(self):
         # Optionally define stages if needed (depends on your feature extraction strategy)

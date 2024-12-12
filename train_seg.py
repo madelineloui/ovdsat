@@ -28,9 +28,11 @@ def main(args):
     num_workers = args.num_workers
 
     # Instantiate the model and data module
-    model = ChangeDetectionSegModel(num_classes=num_classes, backbone_type=backbone_type, segmodel_type=segmodel_type, learning_rate=learning_rate)
     data_module = DynnetDataModule(train_split=train_split, val_split=val_split, test_split=test_split,
                                     batch_size=batch_size, crop_size=crop_size, num_workers=num_workers)
+    print('TIME_SERIES_LENGTH:', data_module.time_series_length)
+    model = ChangeDetectionSegModel(num_classes=num_classes, backbone_type=backbone_type, segmodel_type=segmodel_type, 
+                                    learning_rate=learning_rate, time_series_length=data_module.time_series_length)
                 
     # Logger: CSV Logger
     logger = CSVLogger(

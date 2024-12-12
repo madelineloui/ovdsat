@@ -15,6 +15,7 @@ class DynnetDataModule(pl.LightningDataModule):
         self.batch_size = batch_size
         self.crop_size = crop_size
         self.num_workers = num_workers
+        self.time_series_length = DynnetEval(txt_file=self.test_split, crop_size=self.crop_size).num_crops_per_image[0]
 
     def setup(self, stage=None):
         # Setup train and validation datasets
