@@ -10,6 +10,8 @@ from huggingface_hub import hf_hub_download
 import open_clip
 
 # Paths to the pre-trained models
+PATH_CKPT_CLIP14 = 'weights/clip-vit-large-patch14'
+PATH_CKPT_CLIP32 = 'weights/clip-vit-base-patch32'
 PATH_CKPT_GEORSCLIP_32 = 'weights/RS5M_ViT-B-32.pt'
 PATH_CKPT_GEORSCLIP_14 = 'weights/RS5M_ViT-H-14.pt'
 PATH_CKPT_REMOTECLIP_32 = 'weights/RemoteCLIP-ViT-B-32.pt'
@@ -38,9 +40,9 @@ def load_backbone(backbone_type):
     elif backbone_type == 'dinov2-reg':
         model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vitl14_reg', force_reload=True)
     elif backbone_type == 'clip-32':
-        model = CLIPModel.from_pretrained("/home/gridsan/manderson/ovdsat/weights/clip-vit-base-patch32").vision_model
+        model = CLIPModel.from_pretrained(PATH_CKPT_CLIP32).vision_model
     elif backbone_type == 'clip-14':
-        model = CLIPModel.from_pretrained("/home/gridsan/manderson/ovdsat/weights/clip-vit-large-patch14").vision_model
+        model = CLIPModel.from_pretrained(PATH_CKPT_CLIP14).vision_model
     elif backbone_type == 'openclip-32':
         model, _, _ = open_clip.create_model_and_transforms('ViT-B-32', pretrained='openai')
         model = model.visual
