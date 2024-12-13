@@ -8,7 +8,6 @@ import torch.nn.functional as F
 from transformers import CLIPModel
 from huggingface_hub import hf_hub_download
 import open_clip
-import segmentation_models_pytorch as smp
 
 # Paths to the pre-trained models
 PATH_CKPT_GEORSCLIP_32 = 'weights/RS5M_ViT-B-32.pt'
