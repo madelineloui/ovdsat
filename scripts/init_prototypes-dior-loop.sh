@@ -10,11 +10,11 @@ module load anaconda/2023a
 source activate ovdsat
 
 DATA_DIR=data
-for backbone in clip-14-gpt0 #clip-14-cap0 clip-14-cap1 clip-14-cap2 openclip-14 dinov2 georsclip-14 remoteclip-14 clip-14
+for backbone in dinov2 #dinov2 clip-14 openclip-14 georsclip-14 remoteclip-14 clip-14-cap0 clip-14-cap1 clip-14-cap2 clip-14-gpt0-512-epoch23 clip-14-gpt0-512-epoch50 clip-14-gpte-512-epoch26 clip-14-gpte-512-epoch50 clip-14-gpt0-1024-epoch26 clip-14-gpt0-1024-epoch50 clip-14-gpte-1024-epoch24 clip-14-gpte-1024-epoch50
 do
     for dataset in dior
     do
-        for N in 10
+        for N in 5 10 30
         do
             echo "Creating prototypes for the ${dataset} dataset using ${backbone} features with N=${N}"
 
