@@ -75,6 +75,7 @@ data/
 │   └── ...
 ...
 ```
+To generate splits for new datasets using `data/voc2coco.ipynb` (see section with heading "Generate splits for N=5,10,30, finetune, and validation")<br /><br />
 Notice that the train_coco_finetune_val.json corresponds to a small subset of training data from the used dataset that is used as validation set during training, so that no real validation data is used as such.
 
 #### Weights
@@ -82,9 +83,10 @@ Notice that the train_coco_finetune_val.json corresponds to a small subset of tr
 We pre-trained a FasterRCNN model on DOTA for the RPN using the code from [DroneDetectron2](https://github.com/akhilpm/DroneDetectron2). The pre-trained checkpoints can be found in the [Google Drive directory](https://drive.google.com/drive/folders/1g3JhJivPlmpCfggAAJoiZPJDOIBeJR5J?usp=sharing). If you plan to use any of the Remote Sensing CLIP models tested in the paper, download the pre-trained weights ([RemoteCLIP](https://huggingface.co/chendelong/RemoteCLIP/tree/main) and [GeoRSClip](https://huggingface.co/Zilun/GeoRSCLIP)) and add them to the weights/ directory.
 
 ### Create prototypes
-To generate the class-reference and background prototypes using [DINOv2](https://github.com/facebookresearch/dinov2) features, run the following command:
+To generate the class-reference and background prototypes using different backbone features, run the following command:
 ```Shell
-bash scripts/init_prototypes.sh
+bash scripts/init_prototypes-dior-loop.sh
+bash scripts/init_prototypes-simd-loop.sh
 ```
 **Important:** Add the path to your data and the in the DATA_DIR variable in the bash files. You can adapt the used datasets, value of N as well. If you are running other data or the files/paths differ from ours, you can adapt the contents of the bash file to your own structure.
 
@@ -95,13 +97,16 @@ bash scripts/train_prototypes_bbox.sh
 ```
 
 ### Evaluate
-Evaluate the learned prototypes on unsen data:
+Evaluate the learned prototypes on unseen data:
 ```Shell
-bash scripts/eval_detection.sh
+bash scripts/eval_detection-loop-dior.sh
+bash scripts/eval_detection-loop-simd.sh
+bash scripts/eval_detection-loop-simd-sc.sh
 ```
+`sc` indicates super classes.
 
 ### Backbones
-Add to utils_dir/backbones_utils.py
+Add any additional or custom backbones to `utils_dir/backbones_utils.py`, with path to local pretrained weights.
 
 ### Citation
 If you found our work useful, please cite it as follows:
