@@ -284,12 +284,6 @@ def extract_backbone_features(images, model, backbone_type, scale_factor=1):
     if 'dinov2' in backbone_type:
         with torch.no_grad():
             feats = model.forward_features(images)['x_prenorm'][:, 1:]
-    elif 'resnet' in backbone_type:
-        with torch.no_grad():
-            feats = model(images)
-            print(len(feats))
-            for fe in feats:
-                print(fe.shape)
     elif 'clip' in backbone_type:
         feats, _ = extract_clip_features(images, model, backbone_type)
         feats = feats.view(feats.shape[0], -1, feats.shape[-1])
