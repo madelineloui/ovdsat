@@ -5,7 +5,7 @@ This way, training, eval and the model itself can all use the same code.
 
 import torch
 import torch.nn.functional as F
-from transformers import CLIPModel
+from transformers import CLIPModel, CLIPTokenizer
 from huggingface_hub import hf_hub_download
 import open_clip
 
@@ -13,7 +13,7 @@ import open_clip
 PATH_CKPT_CLIP14 = 'weights/clip-vit-large-patch14'
 PATH_CKPT_CLIP32 = 'weights/clip-vit-base-patch32'
 PATH_CKPT_GEORSCLIP_32 = 'weights/RS5M_ViT-B-32.pt'
-PATH_CKPT_GEORSCLIP_14 = 'weights/RS5M_ViT-H-14.pt'
+PATH_CKPT_GEORSCLIP_14 = 'weights/RS5M_ViT-L-14.pt'
 PATH_CKPT_REMOTECLIP_32 = 'weights/RemoteCLIP-ViT-B-32.pt'
 PATH_CKPT_REMOTECLIP_14 = 'weights/RemoteCLIP-ViT-L-14.pt'
 PATH_CKPT_CLIP14_CAP0 = 'weights/vlm4rs/cap0_e33.pth'
@@ -58,7 +58,7 @@ def load_backbone(backbone_type):
         model = model.visual
         model.output_tokens = True
     elif backbone_type == 'georsclip-14':
-        model, _, _ = open_clip.create_model_and_transforms('ViT-H-14')
+        model, _, _ = open_clip.create_model_and_transforms('ViT-L-14')
         ckpt = torch.load(PATH_CKPT_GEORSCLIP_14, map_location="cpu")
         model.load_state_dict(ckpt)
         model = model.visual
@@ -155,12 +155,65 @@ def load_backbone(backbone_type):
         model = model.vision_model
         model.output_tokens = True
         print(f'Using checkpoint {PATH_CKPT_CLIP14_GPTe_1024_EPOCH50}')
-
+    else:
+        print(f'Warning: {backbone_type} not in list!')
 
     for name, parameter in model.named_parameters():
         parameter.requires_grad = False
     return model
+              
+def load_backbone_and_tokenizer(backbone_type):
+    '''
+    Load backbone model and tokenizer for VL models (CLIP).
 
+    Args:
+        backbone_type (str): Backbone type
+    '''
+    if backbone_type == 'clip-32':
+        model = CLIPModel.from_pretrained(PATH_CKPT_CLIP32)
+        tokenizer = CLIPTokenizer.from_pretrained(PATH_CKPT_CLIP32)
+    elif backbone_type == 'clip-14':
+        model = CLIPModel.from_pretrained(PATH_CKPT_CLIP14)
+        tokenizer = CLIPTokenizer.from_pretrained(PATH_CKPT_CLIP14)
+    elif backbone_type == 'openclip-32':
+        model, _, _ = open_clip.create_model_and_transforms('ViT-B-32', pretrained='openai')
+        tokenizer = open_clip.get_tokenizer('ViT-B-32')
+    elif backbone_type == 'openclip-14':
+        model, _, _ = open_clip.create_model_and_transforms('ViT-L-14', pretrained='openai')
+        tokenizer = open_clip.get_tokenizer('ViT-L-14')
+    elif backbone_type == 'georsclip-32':
+        model, _, _ = open_clip.create_model_and_transforms('ViT-B-32')
+        ckpt = torch.load(PATH_CKPT_GEORSCLIP_32, map_location="cpu")
+        model.load_state_dict(ckpt)
+        tokenizer = open_clip.get_tokenizer('ViT-B-32')
+    elif backbone_type == 'georsclip-14':
+        model, _, _ = open_clip.create_model_and_transforms('ViT-L-14')
+        ckpt = torch.load(PATH_CKPT_GEORSCLIP_14, map_location="cpu")
+        model.load_state_dict(ckpt)
+        tokenizer = open_clip.get_tokenizer('ViT-L-14')
+    elif backbone_type == 'remoteclip-32':
+        model, _, _ = open_clip.create_model_and_transforms('ViT-B-32')
+        ckpt = torch.load(PATH_CKPT_REMOTECLIP_32, map_location="cpu")
+        model.load_state_dict(ckpt)
+        tokenizer = open_clip.get_tokenizer('ViT-B-32')
+    elif backbone_type == 'remoteclip-14':
+        model, _, _ = open_clip.create_model_and_transforms('ViT-L-14')
+        ckpt = torch.load(PATH_CKPT_REMOTECLIP_14, map_location="cpu")
+        model.load_state_dict(ckpt)
+        tokenizer = open_clip.get_tokenizer('ViT-L-14')
+    elif backbone_type == 'clip-14-gpte-1024-epoch50':
+        model = CLIPModel.from_pretrained(PATH_CKPT_CLIP14)
+        ckpt = torch.load(PATH_CKPT_CLIP14_GPTe_1024_EPOCH50, map_location="cpu")
+        model.load_state_dict(ckpt)
+        print(f'Using checkpoint {PATH_CKPT_CLIP14_GPTe_1024_EPOCH50}')
+        tokenizer = CLIPTokenizer.from_pretrained(PATH_CKPT_CLIP14)
+    else:
+        print(f'Warning: {backbone_type} not in list!')
+
+    for name, parameter in model.named_parameters():
+        parameter.requires_grad = False
+    return model, tokenizer
+ 
 def prepare_image_for_backbone(input_tensor, backbone_type):
     '''
     Preprocess an image for the backbone model given an input tensor and the backbone type.
