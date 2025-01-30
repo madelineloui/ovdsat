@@ -264,6 +264,42 @@ from utils_dir.coco_to_seg import coco_to_seg
 #     }
 #     return category_dict
 
+def build_background_text_prototypes(args, tokenizer, model, device):
+    '''
+    Build zero-shot text prototypes by creating prompts and processing them with CLIP
+
+    Args:
+        args (argparse.Namespace): Input arguments
+        tokenizer (TODO): Clip tokenizer
+        model (torch.nn.Module): Backbone text encoder model
+        device (str): Device to run the model on
+    '''
+    with open(args.bg_prompts, "r") as f:
+        bg_prompts = [line.strip() for line in f]
+    print(f'{len(bg_prompts)} background prompts found')
+
+    if any(b in args.backbone_type for b in ('openclip', 'remoteclip', 'georsclip')):
+        tokenized_bg_prompts = tokenizer(bg_prompts).to(device)
+        bg_text_features = model.encode_text(tokenized_bg_prompts).to(device)
+    else:
+        tokenized_bg_prompts = tokenizer(bg_prompts, return_tensors="pt", padding=True, truncation=True).to(device)
+        bg_text_features = model.get_text_features(**tokenized_bg_prompts).to(device)
+
+    norm_bg_text_features = F.normalize(bg_text_features, p=2, dim=-1)
+    bg_classes = ['bg_class_{}'.format(i+1) for i in range(len(bg_prompts))]
+
+    category_dict = {
+        'prototypes': norm_bg_text_features.cpu(),
+        'label_names': bg_classes
+    }
+    
+    prototype_shape = category_dict['prototypes'].shape
+    print(f'Shape of text prototypes: {prototype_shape}')
+    
+    return category_dict
+
+    
+
 def build_text_prototypes(args, tokenizer, model, device):
     '''
     Build zero-shot text prototypes by creating prompts and processing them with CLIP
@@ -293,11 +329,7 @@ def build_text_prototypes(args, tokenizer, model, device):
     
     # Normalize
     norm_text_features = F.normalize(text_features, p=2, dim=-1)
-    
-    # TODO Add background prompt if desired
-    #if args.bg:
-    # add prototype for background
-    
+
     category_dict = {
         'prototypes': norm_text_features.cpu(),
         'label_names': classes
@@ -315,31 +347,16 @@ def main(args):
     Args:
         args (argparse.Namespace): Input arguments
     '''
-    
-    # # Convert COCO annotations to segmentation masks
-    # init_data_path = os.path.join('data', 'init_data', args.save_dir.split('/')[-1])
-    # print(args.annotations_file)
-    # coco_to_seg(args.annotations_file, args.data_dir, init_data_path)
 
-    print('Building text prototypes...')
+    print('\nBuilding text prototypes...')
     print(f'Loading model: {args.backbone_type}...')
     print(f'Using labels in {args.labels_dir}')
-
-    # Load model - TODO: need to load text encoder (it's only vision rn) also need the clip tokenizer!
-    # device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    # model = load_backbone_all(args.backbone_type)
-    # model = model.to(device)
-    # model.eval()
-    # patch_size, _ = get_backbone_params(args.backbone_type)
     
     # Load model and tokenizer
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model, tokenizer = load_backbone_and_tokenizer(args.backbone_type)
     model = model.to(device)
     model.eval()
-    
-    # # Build object prototypes
-    # obj_category_dict = build_object_prototypes(args, model, init_data_path, device, patch_size)
     
     # Build text prototypes
     obj_category_dict = build_text_prototypes(args, tokenizer, model, device)
@@ -348,16 +365,15 @@ def main(args):
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
 
-#     # Build background prototypes if specified
-#     if args.store_bg_prototypes:
-
-#         bg_category_dict = build_background_prototypes(args, model, device, patch_size)
-#         save_name = f'bg_prototypes_{args.backbone_type}.pt'
-#         torch.save(bg_category_dict, os.path.join(args.save_dir, save_name))
+    # Build background prototypes if specified
+    if args.bg_prompts is not None:
+        bg_category_dict = build_background_text_prototypes(args, tokenizer, model, device)
+        save_name = f'bg_prototypes_{args.backbone_type}.pt'
+        torch.save(bg_category_dict, os.path.join(args.save_dir, save_name))
+        print(f'Saved background prototypes to {os.path.join(args.save_dir, save_name)}')
 
     save_name = f'prototypes_{args.backbone_type}.pt'
     torch.save(obj_category_dict, os.path.join(args.save_dir, save_name))
-
     print(f'Saved prototypes to {os.path.join(args.save_dir, save_name)}')
 
 
@@ -367,14 +383,14 @@ if __name__ == '__main__':
     parser.add_argument('--save_dir', type=str, default='run/text_prototypes/boxes/dior')
     #parser.add_argument('--annotations_file', type=str, default='/mnt/ddisk/boux/code/data/simd/train_coco_subset_N10.json')
     parser.add_argument('--backbone_type', type=str, default='clip-14')
-    parser.add_argument('--labels_dir', type=str, default='/home/gridsan/manderson/ovdsat/data/dior/dior_labels.txt')
+    parser.add_argument('--labels_dir', type=str, default='/home/gridsan/manderson/ovdsat/data/text/dior_labels.txt')
     #parser.add_argument('--target_size', nargs=2, type=int, metavar=('width', 'height'), default=(602, 602))
     #parser.add_argument('--window_size', type=int, default=224)
     #parser.add_argument('--scale_factor', type=int, default=1)
     #parser.add_argument('--num_b', type=int, default=10, help='Number of background samples to extract per image')
     #parser.add_argument('--k', type=int, default=200, help='Number of background prototypes (clusters for k-means)')
     #parser.add_argument('--store_bg_prototypes', action='store_true', default=False)
-    parser.add_argument('--bg', action='store_true', default=False)
+    parser.add_argument('--bg_prompts', type=str, default=None)
     args = parser.parse_args()
 
     main(args)
