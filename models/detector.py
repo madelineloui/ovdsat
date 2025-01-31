@@ -21,7 +21,8 @@ class OVDDetector(torch.nn.Module):
                 ignore_index=-1,
                 rpn_config='configs/FasterRCNN_FPN_DOTA_config.yaml',
                 rpn_checkpoint='weights/FasterRCNN_FPN_DOTA_final_model.pth',
-                classification='box'    # Possible values: 'box', 'obb', 'mask'
+                classification='box',    # Possible values: 'box', 'obb', 'mask'
+                text=False
                 ):
         super().__init__()
         self.scale_factor = scale_factor
@@ -51,7 +52,7 @@ class OVDDetector(torch.nn.Module):
 
         # Initialize Classifier
         classifier = OVDBoxClassifier if classification == 'box' else OVDMaskClassifier
-        self.classifier = classifier(all_prototypes, prototypes['label_names'], backbone_type, target_size, scale_factor, min_box_size, ignore_index)
+        self.classifier = classifier(all_prototypes, prototypes['label_names'], backbone_type, target_size, scale_factor, min_box_size, ignore_index, text=text)
     
 
     def forward(self, images, iou_thr=0.2, conf_thres=0.001, box_conf_threshold=0.01, aggregation='mean', labels=None):

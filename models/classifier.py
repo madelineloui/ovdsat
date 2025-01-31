@@ -7,7 +7,7 @@ from utils_dir.backbones_utils import extract_backbone_features, load_backbone
 
 class OVDBaseClassifier(torch.nn.Module):
 
-    def __init__(self, prototypes, class_names, backbone_type='dinov2', target_size=(602,602), scale_factor=2, min_box_size=5, ignore_index=-1):
+    def __init__(self, prototypes, class_names, backbone_type='dinov2', target_size=(602,602), scale_factor=2, min_box_size=5, ignore_index=-1, text=False):
         super().__init__()
         self.scale_factor = scale_factor
         self.target_size = target_size
@@ -15,6 +15,7 @@ class OVDBaseClassifier(torch.nn.Module):
         self.ignore_index = ignore_index
         self.backbone_type = backbone_type
         self.class_names = class_names
+        self.text = text
         
         if isinstance(self.scale_factor, int):
             self.scale_factor = [self.scale_factor]
@@ -81,8 +82,8 @@ class OVDBaseClassifier(torch.nn.Module):
     
     
 class OVDBoxClassifier(OVDBaseClassifier):
-    def __init__(self, prototypes, class_names, backbone_type='dinov2', target_size=(602,602), scale_factor=2, min_box_size=5, ignore_index=-1):
-        super().__init__(prototypes, class_names, backbone_type, target_size, scale_factor, min_box_size, ignore_index)
+    def __init__(self, prototypes, class_names, backbone_type='dinov2', target_size=(602,602), scale_factor=2, min_box_size=5, ignore_index=-1, text=False):
+        super().__init__(prototypes, class_names, backbone_type, target_size, scale_factor, min_box_size, ignore_index, text)
         
     def forward(self, images, boxes, cls=None, normalize=False, return_cosim=False, aggregation='mean', k=10):
         '''
@@ -97,7 +98,7 @@ class OVDBoxClassifier(OVDBaseClassifier):
         scales = []
 
         for scale in self.scale_factor:
-            feats = extract_backbone_features(images, self.backbone, self.backbone_type, scale_factor=scale)
+            feats = extract_backbone_features(images, self.backbone, self.backbone_type, scale_factor=scale, text=self.text)
             cosine_sim = self.get_cosim_mini_batch(feats, self.embedding, normalize=normalize)
             scales.append(cosine_sim)
 

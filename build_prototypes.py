@@ -235,6 +235,7 @@ def build_object_prototypes(args, model, init_data, device, patch_size):
             
             # Extract features and reshape to 2D image
             features = extract_backbone_features(image.to(device), model, args.backbone_type, scale_factor=args.scale_factor)
+            print('\nFEATURES:', features.shape, '\n')
             _, K, D = features.shape
             p_w = p_h = int(K**0.5)
             features = features.reshape(p_h, p_w, -1).permute(2, 0, 1)

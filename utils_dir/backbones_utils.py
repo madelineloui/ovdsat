@@ -238,7 +238,7 @@ def prepare_image_for_backbone(input_tensor, backbone_type):
 
     return normalized_tensor
 
-def get_backbone_params(backbone_type):
+def get_backbone_params(backbone_type, text=False):
     '''
     Get the parameters patch size and embedding dimensionality of the backbone model given the backbone type.
 
@@ -246,7 +246,13 @@ def get_backbone_params(backbone_type):
         backbone_type (str): Backbone type
     '''
 
-    if backbone_type == 'georsclip-14':
+    if text:
+        D = 768
+        if '14' in backbone_type:
+            patch_size=14
+        else:
+            patch_size=32
+    elif backbone_type == 'georsclip-14':
         patch_size = 14
         D = 1280
     elif '14' in backbone_type or 'dinov2' in backbone_type:
@@ -258,7 +264,7 @@ def get_backbone_params(backbone_type):
     return patch_size, D
 
 
-def extract_clip_features(images, model, backbone_type, tile_size=224):
+def extract_clip_features(images, model, backbone_type, tile_size=224, text=False):
     '''
     Extract features from a CLIP pre-trained backbone using a sliding window approach to handle images of variable sizes.
 
@@ -268,10 +274,11 @@ def extract_clip_features(images, model, backbone_type, tile_size=224):
         backbone_type (str): Backbone type
         tile_size (int): Size of the tiles to process the image. Set to 224 as CLIP pre-trained models use 224x224 images.
     '''
+    
     # Extract size and number of tiles
     B, _, image_size, _ = images.shape
     
-    patch_size, D = get_backbone_params(backbone_type)
+    patch_size, D = get_backbone_params(backbone_type, text=text)
 
     num_tiles = (image_size // tile_size)**2 if image_size % tile_size == 0 else (image_size // tile_size + 1)**2
     num_tiles_side = int(num_tiles**0.5)
@@ -303,11 +310,19 @@ def extract_clip_features(images, model, backbone_type, tile_size=224):
                 # Extract CLIP's features before token pooling
                 #if backbone_type == 'clip-32' or backbone_type == 'clip-14':
                 if 'georsclip' in backbone_type or 'remoteclip' in backbone_type or 'openclip' in backbone_type:
-                    image_features = model(tile)[-1]
+                    if text:
+                        image_features = model.encode_image(tile).unsqueeze(1)
+                    else:
+                        image_features = model(tile)[-1]
                 elif 'clip-32' in backbone_type or 'clip-14' in backbone_type:
-                    image_features = model(tile).last_hidden_state[:, 1:]
+                    if text:
+                        image_features = model.get_image_features(tile).unsqueeze(1)
+                    else:
+                        image_features = model(tile).last_hidden_state[:, 1:]
                 else:
                     image_features = model(tile)[-1]
+                    
+                #print(f'\nFEATURE SHAPE: {image_features.shape}\n') - TODO for debugging
 
                 _, K, D = image_features.shape
                 p_w = p_h = int(K**0.5)
@@ -322,7 +337,7 @@ def extract_clip_features(images, model, backbone_type, tile_size=224):
     
     return output_features, count_tensor
 
-def extract_backbone_features(images, model, backbone_type, scale_factor=1):
+def extract_backbone_features(images, model, backbone_type, scale_factor=1, text=False):
     '''
     Extract features from a pre-trained backbone for any of the supported backbones.
 
@@ -338,8 +353,14 @@ def extract_backbone_features(images, model, backbone_type, scale_factor=1):
         with torch.no_grad():
             feats = model.forward_features(images)['x_prenorm'][:, 1:]
     elif 'clip' in backbone_type:
-        feats, _ = extract_clip_features(images, model, backbone_type)
-        feats = feats.view(feats.shape[0], -1, feats.shape[-1])
+        if text:
+            model, _ = load_backbone_and_tokenizer(backbone_type)
+            model.to(images.device)
+            feats, _ = extract_clip_features(images, model, backbone_type, text=text)
+            feats = feats.view(feats.shape[0], -1, feats.shape[-1])
+        else:
+            feats, _ = extract_clip_features(images, model, backbone_type, text=text)
+            feats = feats.view(feats.shape[0], -1, feats.shape[-1])
     else:
         raise NotImplementedError('Backbone {} not implemented'.format(backbone_type))
 

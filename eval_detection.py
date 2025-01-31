@@ -31,7 +31,7 @@ def prepare_model(args):
     bg_prototypes = torch.load(args.bg_prototypes_path) if args.bg_prototypes_path is not None else None
     if args.bg_prototypes_path is not None:
         print(f'Using background prototypes from {args.bg_prototypes_path}')
-    model = OVDDetector(prototypes, bg_prototypes, scale_factor=args.scale_factor, backbone_type=args.backbone_type, target_size=args.target_size, classification=args.classification).to(device)
+    model = OVDDetector(prototypes, bg_prototypes, scale_factor=args.scale_factor, backbone_type=args.backbone_type, target_size=args.target_size, classification=args.classification, text=args.t).to(device)
     #model.eval() 
     return model, device
 
@@ -209,6 +209,11 @@ def eval_detection(args, model, val_dataloader, device):
 
 def main(args):
     print('Setting up evaluation...')
+    
+    # ### TODO - for debugging
+    # prototype = torch.load('/home/gridsan/manderson/ovdsat/run/init_prototypes/boxes/dior_N10-1/prototypes_clip-14.pt')
+    # print('\nusual prototype shape:', prototype['prototypes'].shape)
+    # print()
 
     # Initialize dataloader
     _, val_dataloader = init_dataloaders(args)
@@ -243,6 +248,7 @@ if __name__ == '__main__':
     parser.add_argument('--scale_factor', nargs='+', type=int, default=2)
     parser.add_argument('--iou_thr', type=float, default=0.2)
     parser.add_argument('--conf_thres', type=float, default=0.001)
-    parser.add_argument('--sc', type=float, default=0)
+    parser.add_argument('--t', action='store_true', default=False) # if using text
+    parser.add_argument('--sc', action='store_true', default=False)
     args = parser.parse_args()
     main(args)
