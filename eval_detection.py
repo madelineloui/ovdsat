@@ -100,7 +100,8 @@ def eval_detection(args, model, val_dataloader, device):
     stats = []
     with torch.no_grad():
         for i, batch in tqdm(enumerate(val_dataloader), total=len(val_dataloader), leave=False):
-
+            # if i > 50: # TODO debug
+            #     break
             if args.classification != 'mask':
                 images, boxes, labels, metadata = batch
                 boxes = boxes.to(device)

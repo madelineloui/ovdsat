@@ -289,7 +289,7 @@ def main(args):
     train_dataloader, val_dataloader = init_dataloaders(args)
     
     # Load model
-    model, device = prepare_model(args)
+    model, device = prepare_model(args) #model is OVDBoxClassifier, initialized with basic prototypes if available
 
     # Perform training
     model = train(args, model, train_dataloader, val_dataloader, device)

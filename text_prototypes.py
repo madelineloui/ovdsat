@@ -45,6 +45,12 @@ def build_background_text_prototypes(args, tokenizer, model, device):
     if any(b in args.backbone_type for b in ('openclip', 'remoteclip', 'georsclip')):
         tokenized_bg_prompts = tokenizer(bg_prompts).to(device)
         bg_text_features = model.encode_text(tokenized_bg_prompts).to(device)
+    elif 'customclip' in args.backbone_type:
+        tokenized_bg_prompts = tokenizer(bg_prompts, return_tensors="pt", padding=True, truncation=True).to(device)
+        bg_text_features = model.encode_text(tokenized_bg_prompts).to(device)
+        #print(bg_text_features.shape)
+        #print(torch.mean(bg_text_features))
+        #bg_text_features = F.normalize(model.encode_text(tokenized_bg_prompts), dim=1).to(device)
     else:
         tokenized_bg_prompts = tokenizer(bg_prompts, return_tensors="pt", padding=True, truncation=True).to(device)
         bg_text_features = model.get_text_features(**tokenized_bg_prompts).to(device)
@@ -86,11 +92,22 @@ def build_text_prototypes(args, tokenizer, model, device):
     if any(b in args.backbone_type for b in ('openclip', 'remoteclip', 'georsclip')):
         tokenized_prompts = tokenizer(prompts).to(device)
         text_features = model.encode_text(tokenized_prompts).to(device)
+    elif 'customclip' in args.backbone_type:
+        tokenized_prompts = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True).to(device)
+        # print('checking tokens')
+        # print(tokenized_prompts['input_ids'].shape)
+        # print(tokenized_prompts['input_ids'][0])
+        # print(tokenized_prompts['attention_mask'].shape)
+        # print(tokenized_prompts['attention_mask'][0])
+        text_features = model.encode_text(tokenized_prompts).to(device)
+        #print(text_features.shape)
+        #print(torch.mean(text_features))
+        #text_features = F.normalize(model.encode_text(tokenized_prompts), dim=1).to(device)
     else:
         tokenized_prompts = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True).to(device)
         text_features = model.get_text_features(**tokenized_prompts).to(device)
         # Pass through projection layer to match image embedding dimension
-        text_features = model.text_projection(text_features)
+        # text_features = model.text_projection(text_features) # TODO I think model.get_text_features takes care of this?
     
     # Normalize
     norm_text_features = F.normalize(text_features, p=2, dim=-1)
