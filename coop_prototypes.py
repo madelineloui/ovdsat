@@ -1,13 +1,3 @@
-'''
-1 - Provide directory with object examples and their segmentation masks
-2 - Create model (CLIP / DINO) to extract features
-3 - For each class, extract the name and features of the image masked by the segmentation mask
-4 - Average the features over the patches that are not masked, which cointain the object
-5 - Repeat until done for each object in each class separately
-6 - For each class, stack, normalize and average the features of all objects in the class
-7 - Save the features as a tensor and the class names as a list in a dictionary and save the prototype
-'''
-
 import os
 import cv2
 import json
@@ -27,10 +17,10 @@ from argparse import ArgumentParser
 from utils_dir.backbones_utils import load_backbone_and_tokenizer, extract_backbone_features, get_backbone_params
 from utils_dir.coco_to_seg import coco_to_seg
 
-
 def build_background_text_prototypes(args, tokenizer, model, device):
     '''
     Build zero-shot text prototypes by creating prompts and processing them with CLIP
+    Can use with CoOp?
 
     Args:
         args (argparse.Namespace): Input arguments
@@ -69,7 +59,7 @@ def build_background_text_prototypes(args, tokenizer, model, device):
     return category_dict
 
     
-def build_text_prototypes(args, tokenizer, model, device):
+def build_coop_prototypes(args, model, device):
     '''
     Build zero-shot text prototypes by creating prompts and processing them with CLIP
 
@@ -80,40 +70,69 @@ def build_text_prototypes(args, tokenizer, model, device):
         device (str): Device to run the model on
     '''
     
+    # note this is only working on cpu currently
+        
     # Read args.labels_dir
     with open(args.labels_dir, "r") as f:
         classes = [line.strip() for line in f]
     print(f'{len(classes)} class labels found')
-        
-    # Turn labels into prompts "a satellite image of a {label}"
-    prompts = [f'a satellite image of a {c}' for c in classes]
     
-    # Tokenize and extract text features
-    if any(b in args.backbone_type for b in ('openclip', 'remoteclip', 'georsclip')):
-        tokenized_prompts = tokenizer(prompts).to(device)
-        text_features = model.encode_text(tokenized_prompts).to(device)
-    elif 'customclip' in args.backbone_type:
-        tokenized_prompts = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True).to(device)
-        # print('checking tokens')
-        # print(tokenized_prompts['input_ids'].shape)
-        # print(tokenized_prompts['input_ids'][0])
-        # print(tokenized_prompts['attention_mask'].shape)
-        # print(tokenized_prompts['attention_mask'][0])
-        text_features = model.encode_text(tokenized_prompts).to(device)
-        #print(text_features.shape)
-        #print(torch.mean(text_features))
-        #text_features = F.normalize(model.encode_text(tokenized_prompts), dim=1).to(device)
-    else:
-        tokenized_prompts = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True).to(device)
-        text_features = model.get_text_features(**tokenized_prompts).to(device)
-        # Pass through projection layer to match image embedding dimension
-        # text_features = model.text_projection(text_features) # TODO I think model.get_text_features takes care of this?
+    model, tokenizer = load_backbone_and_tokenizer(args.backbone_type)
+    print('model device:', next(model.parameters()).device)
     
-    # Normalize
-    norm_text_features = F.normalize(text_features, p=2, dim=-1)
+    context = torch.load(args.ctx_path, map_location=torch.device('cpu') )
+    
+    prefix = context['state_dict']['token_prefix']
+    ctx = context['state_dict']['ctx']
+    suffix = context['state_dict']['token_suffix']
+    
+    if len(ctx.shape) < 3: #unified context, dupicate n_cls times
+        n_cls = len(prefix)
+        ctx = ctx.unsqueeze(0)
+        ctx = ctx.expand(n_cls, -1, -1) 
+    
+    # print(prefix.shape)
+    # print(ctx.shape)
+    # print(suffix.shape)
+    
+    prompts = torch.cat(
+        [
+            prefix,  # (n_cls, 1, dim)
+            ctx,     # (n_cls, n_ctx, dim)
+            suffix,  # (n_cls, *, dim)
+        ],
+        dim=1,
+    )
+    
+    # Reorder for inference
+    # desired_order = [
+    #     "groundtrackfield", "baseballfield", "bridge", "Expressway-toll-station", "vehicle",
+    #     "airplane", "airport", "tenniscourt", "trainstation", "storagetank", "stadium", "windmill",
+    #     "ship", "golffield", "overpass", "chimney", "dam", "basketballcourt", "harbor", "Expressway-Service-area"
+    # ]
+    desired_order = classes
+    alphabetical_order = sorted(desired_order)
+    name_to_idx = {name: i for i, name in enumerate(alphabetical_order)}
+    reorder_indices = [name_to_idx[name] for name in desired_order]
+    prompts = prompts[reorder_indices]
+    
+    print('prompts shape:', prompts.shape)
+    prompts = prompts.to(device=next(model.parameters()).device, dtype=next(model.parameters()).dtype)
+    
+#     text_encoder = model.transformer
+#     text_feats = text_encoder(prompts)
+    
+#     text_feats = text_feats / text_feats.norm(dim=-1, keepdim=True)
+#     text_feats = text_feats[:, 0, :] #CLS token
+#     text_feats.shape # Final shape of text prototypes should be [n_classes, dim=768]
+
+    with torch.no_grad():
+        text_feats = model.transformer(prompts)  # (n_cls, ctx_len, embed_dim)
+
+    text_feats = F.normalize(text_feats[:, 0, :], dim=-1)
 
     category_dict = {
-        'prototypes': norm_text_features.cpu(),
+        'prototypes': text_feats.cpu(),
         'label_names': classes
     }
     
@@ -130,7 +149,7 @@ def main(args):
         args (argparse.Namespace): Input arguments
     '''
 
-    print('\nBuilding text prototypes...')
+    print('\nBuilding CoOp text prototypes...')
     print(f'Loading model: {args.backbone_type}...')
     print(f'Using labels in {args.labels_dir}')
     
@@ -141,10 +160,7 @@ def main(args):
     model.eval()
     
     # Build text prototypes
-    obj_category_dict = build_text_prototypes(args, tokenizer, model, device)
-
-    print('EMBEDDING')
-    print(obj_category_dict['prototypes'][0][:100])
+    obj_category_dict = build_coop_prototypes(args, model, device)
 
     # Create save directory if it does not exist
     if not os.path.exists(args.save_dir):
@@ -165,10 +181,11 @@ def main(args):
 if __name__ == '__main__':
     parser = ArgumentParser()
     #parser.add_argument('--data_dir', type=str, default='data/simd_subset_10')
-    parser.add_argument('--save_dir', type=str, default='run/text_prototypes/boxes/dior')
+    parser.add_argument('--save_dir', type=str, default='')
     #parser.add_argument('--annotations_file', type=str, default='/mnt/ddisk/boux/code/data/simd/train_coco_subset_N10.json')
-    parser.add_argument('--backbone_type', type=str, default='clip-14')
-    parser.add_argument('--labels_dir', type=str, default='/home/gridsan/manderson/ovdsat/data/text/dior_labels.txt')
+    parser.add_argument('--backbone_type', type=str, default='')
+    parser.add_argument('--ctx_path', type=str, required=True)
+    parser.add_argument('--labels_dir', type=str, default='')
     #parser.add_argument('--target_size', nargs=2, type=int, metavar=('width', 'height'), default=(602, 602))
     #parser.add_argument('--window_size', type=int, default=224)
     #parser.add_argument('--scale_factor', type=int, default=1)

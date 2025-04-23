@@ -47,6 +47,7 @@ def load_backbone(backbone_type):
         model = CLIPModel.from_pretrained(PATH_CKPT_CLIP32).vision_model
     elif backbone_type == 'clip-14':
         model = CLIPModel.from_pretrained(PATH_CKPT_CLIP14).vision_model
+        print('LOADING CLIP_14!')
     elif backbone_type == 'openclip-32':
         model, _, _ = open_clip.create_model_and_transforms('ViT-B-32', pretrained='openai')
         model = model.visual
@@ -55,6 +56,7 @@ def load_backbone(backbone_type):
         model, _, _ = open_clip.create_model_and_transforms('ViT-L-14', pretrained='openai')
         model = model.visual
         model.output_tokens = True
+        print('LOADING OPENCLIP_14!')
     elif backbone_type == 'georsclip-32':
         model, _, _ = open_clip.create_model_and_transforms('ViT-B-32')
         ckpt = torch.load(PATH_CKPT_GEORSCLIP_32, map_location="cpu")
@@ -186,12 +188,14 @@ def load_backbone_and_tokenizer(backbone_type):
     elif backbone_type == 'clip-14':
         model = CLIPModel.from_pretrained(PATH_CKPT_CLIP14)
         tokenizer = CLIPTokenizer.from_pretrained(PATH_CKPT_CLIP14)
+        print('LOADING CLIP_14!')
     elif backbone_type == 'openclip-32':
         model, _, _ = open_clip.create_model_and_transforms('ViT-B-32', pretrained='openai')
         tokenizer = open_clip.get_tokenizer('ViT-B-32')
     elif backbone_type == 'openclip-14':
         model, _, _ = open_clip.create_model_and_transforms('ViT-L-14', pretrained='openai')
         tokenizer = open_clip.get_tokenizer('ViT-L-14')
+        print('LOADING OPENCLIP_14!')
     elif backbone_type == 'georsclip-32':
         model, _, _ = open_clip.create_model_and_transforms('ViT-B-32')
         ckpt = torch.load(PATH_CKPT_GEORSCLIP_32, map_location="cpu")

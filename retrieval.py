@@ -13,6 +13,10 @@ import torch.nn.functional as F
 from transformers import CLIPModel, CLIPProcessor
 
 PATH_CKPT_CLIP14 = 'weights/clip-vit-large-patch14'
+PATH_CKPT_GEORSCLIP_14 = 'weights/RS5M_ViT-L-14.pt'
+PATH_CKPT_REMOTECLIP_14 = 'weights/RemoteCLIP-ViT-L-14.pt'
+PATH_CKPT_CLIP14_FMOW = '/home/gridsan/manderson/train-CLIP/run/fmow/fmow-test-4.pth'
+PATH_CKPT_OPENCLIP14_FMOW = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-fmow-4.pt'
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -30,7 +34,7 @@ def parse_args():
     parser.add_argument(
         "--retrieval-images-dir",
         type=str,
-        default="",
+        default=None,
     )
     parser.add_argument(
         "--clip-path",
@@ -40,10 +44,22 @@ def parse_args():
     )
     parser.add_argument(
         "--backbone",
+        default=None,
+        type=str
+    )
+    parser.add_argument(
+        "--backbone_name",
         default='openclip',
         type=str,
         help="Either openclip or clip",
     )
+    parser.add_argument(
+        "--dataset",
+        default='sydney',
+        type=str,
+        help="Name of dataset",
+    )
+    parser.add_argument("--output-dir", type=str, help="Directory to save results")
     parser.add_argument("--batch-size", type=int, default=64, help="Batch size per GPU.")
     parser.add_argument("--workers", type=int, default=8, help="Number of workers per GPU."
     )
@@ -53,6 +69,22 @@ def parse_args():
     if len(unknown) > 0:
         print(f'[Unknow args]: {unknown}')
     return args
+
+def save_results(args, metrics):
+    """Save retrieval evaluation results to a text file."""
+    # Ensure output directory exists
+    os.makedirs(args.output_dir, exist_ok=True)
+    
+    # Create filename with backbone name and dataset
+    output_file = f"{args.backbone_name}_{args.dataset}_results.txt"
+    output_path = os.path.join(args.output_dir, output_file)
+    
+    # Write results to file
+    with open(output_path, "w") as f:
+        for name, val in metrics.items():
+            f.write(f"{name}: {round(val, 2)}\n")
+
+    print(f"Results saved to {output_path}")
 
 def get_model(args):
     if args.backbone == 'openclip':
@@ -79,6 +111,9 @@ def get_model(args):
             checkpoint = torch.load(args.clip_path, map_location=args.device)
             msg = CLIP_model.load_state_dict(checkpoint, strict=False)
             print(msg)
+            
+    for name, parameter in CLIP_model.named_parameters():
+        parameter.requires_grad = False
 
     return CLIP_model, preprocess_train, preprocess_val, preprocess_val, tokenize
 
@@ -215,14 +250,44 @@ def retrieval_evaluation(args, model, preprocess, tokenize, recall_k_list=[1, 5,
 if __name__ == "__main__":
     args = parse_args()
     args.device = "cuda"
-    model, preprocess_train, preprocess_val, preprocess_aug, tokenize = get_model(args)
+    
+    if args.backbone_name == 'clip':
+        args.backbone = 'clip'
+        args.clip_path = None
+    elif args.backbone_name == 'openclip':
+        args.backbone = 'openclip'
+        args.clip_path = None
+    elif args.backbone_name == 'remoteclip':
+        args.backbone = 'openclip'
+        args.clip_path = PATH_CKPT_REMOTECLIP_14 
+    elif args.backbone_name == 'georsclip':
+        args.backbone = 'openclip'
+        args.clip_path = PATH_CKPT_GEORSCLIP_14 
+    elif args.backbone_name == 'clip-fmow':
+        args.backbone = 'clip'
+        args.clip_path = PATH_CKPT_CLIP14_FMOW 
+    elif args.backbone_name == 'openclip-fmow':
+        args.backbone = 'openclip'
+        args.clip_path = PATH_CKPT_OPENCLIP14_FMOW 
+        
+    if args.dataset == 'sydney':
+        args.retrieval_json_dir = '/home/gridsan/manderson/ovdsat/data/sydney_captions/dataset.json'
+        args.retrieval_images_dir = '/home/gridsan/manderson/ovdsat/data/sydney_captions/images'
+    elif args.dataset == 'rsitmd':
+        args.retrieval_json_dir = '/home/gridsan/manderson/ovdsat/data/RSITMD/dataset_RSITMD.json'
+        args.retrieval_images_dir = '/home/gridsan/manderson/ovdsat/data/RSITMD/images'
 
+    model, preprocess_train, preprocess_val, preprocess_aug, tokenize = get_model(args)
+    model.eval()
+    
     # Image-text retrieval
     all_metrics = {}
     metrics = {}
     retrieval_metrics = retrieval_evaluation(args, model, preprocess_aug, tokenize)
     metrics.update(retrieval_metrics)
     all_metrics.update(retrieval_metrics)
+    
+    save_results(args, metrics)
 
     for name, val in metrics.items():
         print(name, round(val, 2))

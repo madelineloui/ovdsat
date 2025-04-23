@@ -47,9 +47,18 @@ class OVDDetector(torch.nn.Module):
             self.rpn = BoxRPN(rpn_config, rpn_checkpoint)
         elif self.classification == 'obb':
             self.rpn = OBBRPN(rpn_config, rpn_checkpoint)
+        elif sefl.classification == 'image': #CHANGED
+            self.rpn = None
         elif self.classification == 'mask':
             raise NotImplementedError('Mask RPN not implemented yet. Should use SAM to generate proposals.')
 
+        # if 'customclip' in backbone_type:
+        #     ckpt_path = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/customclip.pth'
+        #     checkpoint = torch.load(ckpt_path, map_location=torch.device('cpu'))
+        #     logit_scale = checkpoint['model.logit_scale']
+        # else:
+        #     logit_scale = None
+        
         # Initialize Classifier
         classifier = OVDBoxClassifier if classification == 'box' else OVDMaskClassifier
         self.classifier = classifier(all_prototypes, prototypes['label_names'], backbone_type, target_size, scale_factor, min_box_size, ignore_index, text=text)

@@ -16,6 +16,9 @@ def get_base_new_classes(dataset):
     elif dataset == 'dior':
         base_classes = ['airplane', 'baseballfield', 'basketballcourt', 'groundtrackfield', 'harbor', 'ship', 'tenniscourt', 'storagetank']
         new_classes = ['airport', 'bridge', 'chimney', 'dam', 'Expressway-Service-area', 'Expressway-toll-station', 'golffield', 'overpass', 'stadium', 'windmill', 'trainstation', 'vehicle']
+    elif dataset == 'nwpu':
+        base_classes = ['airplane', 'ship', 'storage tank', 'baseball diamond', 'tennis court', 'basketball court', 'ground track field', 'harbor', 'vehicle']
+        new_classes = ['bridge']
 
     return base_classes, new_classes
 

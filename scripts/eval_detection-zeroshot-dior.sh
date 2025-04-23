@@ -14,7 +14,7 @@ prototype_type=text_prototypes #init_prototypes or train
 finetune_type=boxes #masks or boxes
 M=1
 
-for backbone in clip-14-gpte-1024-epoch50 #openclip-14 clip-14 remoteclip-14 georsclip-14 clip-14-gpte-1024-epoch50
+for backbone in clip-14-fmow-test #openclip-14 clip-14 remoteclip-14 georsclip-14 clip-14-gpte-1024-epoch50
 do
     python eval_detection.py \
         --dataset ${dataset} \
