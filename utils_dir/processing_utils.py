@@ -25,8 +25,8 @@ def filter_boxes(boxes, classes, scores, target_size, num_labels, box_conf_thres
     return filtered_boxes, filtered_classes[:, :num_labels], filtered_scores
 
 
-
 def map_labels_to_prototypes(dataset_categories, model_prototypes, labels):
+    #print(dataset_categories)
     mapped_labels = []
     # Create a reverse mapping from class names to indices for the dataset categories
     dataset_categories_reverse = {v: k for k, v in model_prototypes.items()}

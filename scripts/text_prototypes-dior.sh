@@ -13,7 +13,7 @@ DATASET=dior
 LABELS_DIR=/home/gridsan/manderson/ovdsat/data/text/dior_labels.txt
 BG_PROMPTS=/home/gridsan/manderson/ovdsat/data/text/background_prompts.txt
 
-for backbone in clip-14-fmow-test #clip-14 openclip-14 remoteclip-14 georsclip-14 clip-14-gpte-1024-epoch50
+for backbone in remoteclip-14 #clip-14 openclip-14 remoteclip-14 georsclip-14 clip-14-gpte-1024-epoch50
 do
     python text_prototypes.py \
         --save_dir run/text_prototypes/boxes/${DATASET} \

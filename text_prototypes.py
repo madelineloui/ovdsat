@@ -91,7 +91,9 @@ def build_text_prototypes(args, tokenizer, model, device):
     # Tokenize and extract text features
     if any(b in args.backbone_type for b in ('openclip', 'remoteclip', 'georsclip')):
         tokenized_prompts = tokenizer(prompts).to(device)
+        print('tokenized_prompts', tokenized_prompts.shape)
         text_features = model.encode_text(tokenized_prompts).to(device)
+        print('text_features', text_features.shape)
     elif 'customclip' in args.backbone_type:
         tokenized_prompts = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True).to(device)
         # print('checking tokens')
@@ -111,6 +113,7 @@ def build_text_prototypes(args, tokenizer, model, device):
     
     # Normalize
     norm_text_features = F.normalize(text_features, p=2, dim=-1)
+    print('norm_text_features', norm_text_features.shape)
 
     category_dict = {
         'prototypes': norm_text_features.cpu(),

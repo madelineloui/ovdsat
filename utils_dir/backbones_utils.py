@@ -10,6 +10,13 @@ from huggingface_hub import hf_hub_download
 import open_clip
 from models.custom_clip import CustomCLIPWrapper
 
+# Import Long-CLIP
+import sys
+import os
+model_path = os.path.join("/home/gridsan/manderson/ovdsat/Long-CLIP/model")
+sys.path.append(os.path.abspath(model_path))
+import longclip
+
 # Paths to the pre-trained models
 PATH_CKPT_CLIP14 = 'weights/clip-vit-large-patch14'
 PATH_CKPT_CLIP32 = 'weights/clip-vit-base-patch32'
@@ -30,6 +37,7 @@ PATH_CKPT_OPENCLIP14_GPTe_1024_EPOCH_early = '/home/gridsan/manderson/ovdsat/wei
 PATH_CKPT_CLIP14_TEST = '/home/gridsan/manderson/train-CLIP/run/fmow/fmow-test-4.pth'
 PATH_CKPT_CLIP14_FMOW = '/home/gridsan/manderson/train-CLIP/run/fmow/fmow-test-4.pth'
 PATH_CKPT_OPENCLIP14_FMOW = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-fmow-4.pt'
+PATH_CKPT_LONGCLIP14_FMOW = '/home/gridsan/manderson/Long-CLIP/checkpoints/005-03--04_49_27_longclip.pt'
 
 
 def load_backbone(backbone_type):
@@ -168,6 +176,13 @@ def load_backbone(backbone_type):
         model = model.visual
         model.output_tokens = True
         print(f'Using checkpoint {PATH_CKPT_OPENCLIP14_FMOW}')
+    elif backbone_type == 'longclip-14-fmow':
+        model, _, _ = open_clip.create_model_and_transforms('ViT-L-14')
+        ckpt = torch.load(PATH_CKPT_LONGCLIP14_FMOW, map_location="cpu")
+        model.load_state_dict(ckpt)
+        model = model.visual
+        model.output_tokens = True
+        print(f'Using checkpoint {PATH_CKPT_LONGCLIP14_FMOW}')
     else:
         print(f'Warning: {backbone_type} not in list!')
 

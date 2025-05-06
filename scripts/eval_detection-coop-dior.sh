@@ -16,7 +16,7 @@ backbone=remoteclip-14
 
 for N in 5 10 30
 do
-    for M in 1 2 3
+    for M in 4 5
     do
         python eval_detection.py \
             --dataset ${dataset} \

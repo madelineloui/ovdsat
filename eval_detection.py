@@ -24,7 +24,6 @@ def prepare_model(args):
         device = torch.device("cuda")
     else:
         device = torch.device("cpu")
-
     # Load prototypes and background prototypes
     prototypes = torch.load(args.prototypes_path)
     print(f'Using object prototypes from {args.prototypes_path}')
@@ -109,7 +108,11 @@ def eval_detection(args, model, val_dataloader, device):
                 images, _, labels, masks, _ = batch
                 loc = masks.float().to(device)
             
+            # print(labels)
+            # print(val_dataloader.dataset.get_categories())
+            # print(model.classifier.get_categories())
             labels = map_labels_to_prototypes(val_dataloader.dataset.get_categories(), model.classifier.get_categories(), labels)
+            #print(labels)
             images = images.float().to(device)
             labels = labels.to(device)
 

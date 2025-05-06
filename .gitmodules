@@ -1,0 +1,6 @@
+[submodule "Long-CLIP"]
+	path = Long-CLIP
+	url = git@github.com:beichenzbc/Long-CLIP.git
+[submodule "CoOp"]
+	path = CoOp
+	url = git@github.com:KaiyangZhou/CoOp.git
