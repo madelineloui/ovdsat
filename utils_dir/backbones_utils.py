@@ -37,7 +37,7 @@ PATH_CKPT_OPENCLIP14_GPTe_1024_EPOCH_early = '/home/gridsan/manderson/ovdsat/wei
 PATH_CKPT_CLIP14_TEST = '/home/gridsan/manderson/train-CLIP/run/fmow/fmow-test-4.pth'
 PATH_CKPT_CLIP14_FMOW = '/home/gridsan/manderson/train-CLIP/run/fmow/fmow-test-4.pth'
 PATH_CKPT_OPENCLIP14_FMOW = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-fmow-4.pt'
-PATH_CKPT_LONGCLIP14_FMOW = '/home/gridsan/manderson/Long-CLIP/checkpoints/005-03--04_49_27_longclip.pt'
+PATH_CKPT_LONGCLIP14_FMOW = '/home/gridsan/manderson/ovdsat/Long-CLIP/checkpoints/005-07--05_28_20_longclip.pt'
 
 
 def load_backbone(backbone_type):
@@ -177,11 +177,9 @@ def load_backbone(backbone_type):
         model.output_tokens = True
         print(f'Using checkpoint {PATH_CKPT_OPENCLIP14_FMOW}')
     elif backbone_type == 'longclip-14-fmow':
-        model, _, _ = open_clip.create_model_and_transforms('ViT-L-14')
-        ckpt = torch.load(PATH_CKPT_LONGCLIP14_FMOW, map_location="cpu")
-        model.load_state_dict(ckpt)
+        model, preprocess = longclip.load(PATH_CKPT_LONGCLIP14_FMOW)
         model = model.visual
-        model.output_tokens = True
+        #model.output_tokens = True
         print(f'Using checkpoint {PATH_CKPT_LONGCLIP14_FMOW}')
     else:
         print(f'Warning: {backbone_type} not in list!')
@@ -401,6 +399,9 @@ def extract_clip_features(images, model, backbone_type, tile_size=224, text=Fals
                         #print(torch.mean(image_features))
                     else:
                         image_features = model(tile)[-1]
+                elif 'longclip' in backbone_type:
+                    tile = tile.half()
+                    image_features = model(tile, return_tokens=True)
                 elif 'clip-32' in backbone_type or 'clip-14' in backbone_type:
                     if text:
                         image_features = model.get_image_features(tile).unsqueeze(1)
@@ -409,7 +410,8 @@ def extract_clip_features(images, model, backbone_type, tile_size=224, text=Fals
                 else:
                     image_features = model(tile)[-1]
                     
-                #print(f'\nFEATURE SHAPE: {image_features.shape}\n') - TODO for debugging
+                    
+                #print(f'\nFEATURE SHAPE: {image_features.shape}\n') #- TODO for debugging
 
                 _, K, D = image_features.shape
                 p_w = p_h = int(K**0.5)
