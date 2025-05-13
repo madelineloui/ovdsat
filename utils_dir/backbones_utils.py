@@ -15,7 +15,7 @@ import sys
 import os
 model_path = os.path.join("/home/gridsan/manderson/ovdsat/Long-CLIP/model")
 sys.path.append(os.path.abspath(model_path))
-import longclip
+#import longclip
 
 # Paths to the pre-trained models
 PATH_CKPT_CLIP14 = 'weights/clip-vit-large-patch14'

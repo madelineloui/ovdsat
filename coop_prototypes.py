@@ -60,6 +60,7 @@ def load_clip_to_cpu():
 
     model = clip.build_model(state_dict or model.state_dict())
     
+    # TODO: hardcoded
     #state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-fmow-4.pt', map_location="cpu")
     state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/RemoteCLIP-ViT-L-14.pt', map_location="cpu")
     #state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/RS5M_ViT-L-14.pt', map_location="cpu")
@@ -112,128 +113,162 @@ def build_background_text_prototypes(args, tokenizer, model, device):
     return category_dict
 
     
+# def build_coop_prototypes(args, model, device):
+#     '''
+#     Build zero-shot text prototypes by creating prompts and processing them with CLIP
+
+#     Args:
+#         args (argparse.Namespace): Input arguments
+#         tokenizer (TODO): Clip tokenizer
+#         model (torch.nn.Module): Backbone text encoder model
+#         device (str): Device to run the model on
+#     '''
+    
+#     # note this is only working on cpu currently
+        
+#     # Read args.labels_dir
+#     with open(args.labels_dir, "r") as f:
+#         classes = [line.strip() for line in f]
+#     print(f'{len(classes)} class labels found')
+#     print(classes)
+    
+#     model, tokenizer = load_backbone_and_tokenizer(args.backbone_type)
+#     print('model device:', next(model.parameters()).device)
+    
+#     context = torch.load(args.ctx_path, map_location=torch.device('cpu') )
+    
+#     prefix = context['state_dict']['token_prefix']
+#     ctx = context['state_dict']['ctx']
+#     suffix = context['state_dict']['token_suffix']
+    
+#     name_lens = [len(tokenizer.encode(name)) for name in classes]
+#     n_ctx = 4
+#     n_cls = len(classes)
+
+#     if ctx.dim() == 2:
+#         ctx = ctx.unsqueeze(0).expand(n_cls, -1, -1)
+
+#     # For middle, unified context 
+#     half_n_ctx = n_ctx // 2
+#     prompts = []
+#     for i in range(n_cls):
+#         name_len = name_lens[i]
+#         prefix_i = prefix[i : i + 1, :, :]
+#         class_i = suffix[i : i + 1, :name_len, :]
+#         suffix_i = suffix[i : i + 1, name_len:, :]
+#         ctx_i_half1 = ctx[i : i + 1, :half_n_ctx, :]
+#         ctx_i_half2 = ctx[i : i + 1, half_n_ctx:, :]
+#         prompt = torch.cat(
+#             [
+#                 prefix_i,     # (1, 1, dim)
+#                 ctx_i_half1,  # (1, n_ctx//2, dim)
+#                 class_i,      # (1, name_len, dim)
+#                 ctx_i_half2,  # (1, n_ctx//2, dim)
+#                 suffix_i,     # (1, *, dim)
+#             ],
+#             dim=1,
+#         )
+#         prompts.append(prompt)
+#     prompts = torch.cat(prompts, dim=0)
+    
+#     print('prompts shape:', prompts.shape)
+#     #prompts = prompts.to(device=next(model.parameters()).device, dtype=next(model.parameters()).dtype)
+    
+#     prompt_prefix = " ".join(["X"] * n_ctx)
+#     prompts_for_token = [prompt_prefix + " " + name + "." for name in classes]
+#     tokenized_prompts = torch.cat([clip.tokenize(p) for p in prompts_for_token])
+    
+#     clip_model = load_clip_to_cpu()
+#     text_encoder = TextEncoder(clip_model)
+#     text_feats = text_encoder(prompts, tokenized_prompts)
+
+#     category_dict = {
+#         'prototypes': text_feats.cpu(),
+#         'label_names': classes
+#     }
+    
+#     prototype_shape = category_dict['prototypes'].shape
+#     print(f'Shape of text prototypes: {prototype_shape}')
+    
+#     return category_dict
+
+
 def build_coop_prototypes(args, model, device):
     '''
-    Build zero-shot text prototypes by creating prompts and processing them with CLIP
-
-    Args:
-        args (argparse.Namespace): Input arguments
-        tokenizer (TODO): Clip tokenizer
-        model (torch.nn.Module): Backbone text encoder model
-        device (str): Device to run the model on
+    Build zero-shot text prototypes using CLIP.
+    Returns foreground prototypes and a separate 'bg_class_1' if "background" is present.
     '''
-    
-    # note this is only working on cpu currently
-        
-    # Read args.labels_dir
+    # Load class names
     with open(args.labels_dir, "r") as f:
         classes = [line.strip() for line in f]
-    print(f'{len(classes)} class labels found')
-    print(classes)
-    
+
+    print(f'{len(classes)} class labels found: {classes}')
+
+    has_background = "background" in classes
+    bg_index = classes.index("background") if has_background else None
+
+    # Build prompts
+    prompt_prefix = "X X X X"
+    prompt_texts = [f"{prompt_prefix} {name}." for name in classes]
+    tokenized_prompts = torch.cat([clip.tokenize(p) for p in prompt_texts])
+
+    # Load model + context
     model, tokenizer = load_backbone_and_tokenizer(args.backbone_type)
-    print('model device:', next(model.parameters()).device)
-    
-    context = torch.load(args.ctx_path, map_location=torch.device('cpu') )
-    
+    context = torch.load(args.ctx_path, map_location="cpu")
     prefix = context['state_dict']['token_prefix']
     ctx = context['state_dict']['ctx']
     suffix = context['state_dict']['token_suffix']
-    
-    # if len(ctx.shape) < 3: #unified context, dupicate n_cls times
-    #     n_cls = len(prefix)
-    #     ctx = ctx.unsqueeze(0)
-    #     ctx = ctx.expand(n_cls, -1, -1) 
-    
-    # print(prefix.shape)
-    # print(ctx.shape)
-    # print(suffix.shape)
-    
-    # prompts = torch.cat(
-    #     [
-    #         prefix,  # (n_cls, 1, dim)
-    #         ctx,     # (n_cls, n_ctx, dim)
-    #         suffix,  # (n_cls, *, dim)
-    #     ],
-    #     dim=1,
-    # )
-    
-    # classes = ['ground track field', 'baseball field', 'bridge', 'expressway toll station', 'vehicle', 'airplane', 'airport', 'tennis court', 'train station', 'storage tank', 'stadium', 'windmill', 'ship', 'golf field', 'overpass', 'chimney', 'dam', 'basketball court', 'harbor', 'expressway service area']
-    
-    name_lens = [len(tokenizer.encode(name)) for name in classes]
+
     n_ctx = 4
-    n_cls = len(classes)
+    half_n_ctx = n_ctx // 2
+    name_lens = [len(tokenizer.encode(name)) for name in classes]
 
     if ctx.dim() == 2:
-        ctx = ctx.unsqueeze(0).expand(n_cls, -1, -1)
+        ctx = ctx.unsqueeze(0).expand(len(classes), -1, -1)
 
-    # For middle, unified context 
-    half_n_ctx = n_ctx // 2
     prompts = []
-    for i in range(n_cls):
-        name_len = name_lens[i]
-        prefix_i = prefix[i : i + 1, :, :]
-        class_i = suffix[i : i + 1, :name_len, :]
-        suffix_i = suffix[i : i + 1, name_len:, :]
-        ctx_i_half1 = ctx[i : i + 1, :half_n_ctx, :]
-        ctx_i_half2 = ctx[i : i + 1, half_n_ctx:, :]
-        prompt = torch.cat(
-            [
-                prefix_i,     # (1, 1, dim)
-                ctx_i_half1,  # (1, n_ctx//2, dim)
-                class_i,      # (1, name_len, dim)
-                ctx_i_half2,  # (1, n_ctx//2, dim)
-                suffix_i,     # (1, *, dim)
-            ],
-            dim=1,
-        )
+    for i, name_len in enumerate(name_lens):
+        prefix_i = prefix[i:i+1]
+        class_i = suffix[i:i+1, :name_len]
+        suffix_i = suffix[i:i+1, name_len:]
+        ctx_half1 = ctx[i:i+1, :half_n_ctx]
+        ctx_half2 = ctx[i:i+1, half_n_ctx:]
+        prompt = torch.cat([prefix_i, ctx_half1, class_i, ctx_half2, suffix_i], dim=1)
         prompts.append(prompt)
     prompts = torch.cat(prompts, dim=0)
-    
-    # # Reorder for inference
-    # desired_order = classes
-    # alphabetical_order = sorted(desired_order)
-    # name_to_idx = {name: i for i, name in enumerate(alphabetical_order)}
-    # reorder_indices = [name_to_idx[name] for name in desired_order]
-    # prompts = prompts[reorder_indices]
-    
-    print('prompts shape:', prompts.shape)
-    #prompts = prompts.to(device=next(model.parameters()).device, dtype=next(model.parameters()).dtype)
-    
-    prompt_prefix = " ".join(["X"] * n_ctx)
-    prompts_for_token = [prompt_prefix + " " + name + "." for name in classes]
-    tokenized_prompts = torch.cat([clip.tokenize(p) for p in prompts_for_token])
-    
+
+    # Encode prompts
     clip_model = load_clip_to_cpu()
     text_encoder = TextEncoder(clip_model)
-    text_feats = text_encoder(prompts, tokenized_prompts)
-    
-    # text_feats = model.encode_text(prompts)
-    # print('text_feats 1', text_feats.shape)
-    # text_feats = F.normalize(text_feats, p=2, dim=-1)
-    # print('text_feats 2', text_feats.shape)
-    
-#     text_encoder = model.transformer
-#     text_feats = text_encoder(prompts)
-    
-#     text_feats = text_feats / text_feats.norm(dim=-1, keepdim=True)
-#     text_feats = text_feats[:, 0, :] #CLS token
-#     text_feats.shape # Final shape of text prototypes should be [n_classes, dim=768]
+    text_feats = text_encoder(prompts, tokenized_prompts).cpu()
+    print('text_feats.shape before')
+    print(text_feats.shape)
 
-#     with torch.no_grad():
-#         text_feats = model.transformer(prompts)  # (n_cls, ctx_len, embed_dim)
-
-#     text_feats = F.normalize(text_feats[:, 0, :], dim=-1)
+    # Split background if present
+    if has_background:
+        background_feat = text_feats[bg_index:bg_index+1]
+        print('background_feat')
+        print(background_feat.shape)
+        background_dict = {
+            'prototypes': background_feat,
+            'label_names': ['bg_class_1']
+        }
+        # Remove background from main set
+        del classes[bg_index]
+        text_feats = torch.cat([text_feats[:bg_index], text_feats[bg_index+1:]], dim=0)
+    else:
+        background_dict = None
+        
+    print('text_feats.shape after')
+    print(text_feats.shape)
 
     category_dict = {
-        'prototypes': text_feats.cpu(),
+        'prototypes': text_feats,
         'label_names': classes
     }
-    
-    prototype_shape = category_dict['prototypes'].shape
-    print(f'Shape of text prototypes: {prototype_shape}')
-    
-    return category_dict
+
+    return category_dict, background_dict
+
 
 def main(args):
     '''
@@ -254,15 +289,14 @@ def main(args):
     model.eval()
     
     # Build text prototypes
-    obj_category_dict = build_coop_prototypes(args, model, device)
+    obj_category_dict, bg_category_dict = build_coop_prototypes(args, model, device)
 
     # Create save directory if it does not exist
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
 
     # Build background prototypes if specified
-    if args.bg_prompts is not None:
-        bg_category_dict = build_background_text_prototypes(args, tokenizer, model, device)
+    if bg_category_dict is not None:
         save_name = f'bg_prototypes_{args.backbone_type}.pt'
         torch.save(bg_category_dict, os.path.join(args.save_dir, save_name))
         print(f'Saved background prototypes to {os.path.join(args.save_dir, save_name)}')

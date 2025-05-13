@@ -22,6 +22,7 @@ PATH_CKPT_GEORSCLIP_14 = 'weights/RS5M_ViT-L-14.pt'
 PATH_CKPT_REMOTECLIP_14 = 'weights/RemoteCLIP-ViT-L-14.pt'
 PATH_CKPT_CLIP14_FMOW = '/home/gridsan/manderson/train-CLIP/run/fmow/fmow-test-4.pth'
 PATH_CKPT_OPENCLIP14_FMOW = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-fmow-4.pt'
+PATH_CKPT_LONGCLIP14_FMOW = '/home/gridsan/manderson/ovdsat/Long-CLIP/checkpoints/005-07--05_28_20_longclip.pt'
 
 
 def parse_args():
@@ -66,6 +67,8 @@ def save_results_to_file(args, results):
     
     
 def get_model(args):
+    # TODO need to check for longclip and load in the same way as in backbones_utils
+    # TODO also need longclip tokenizer
     if args.backbone == 'openclip':
         CLIP_model, preprocess_train, preprocess_val = open_clip.create_model_and_transforms('ViT-L-14', pretrained='openai', device=args.device)
         tokenize = open_clip.tokenize
@@ -412,6 +415,9 @@ if __name__ == "__main__":
     elif args.backbone_name == 'openclip-fmow':
         args.backbone = 'openclip'
         args.clip_path = PATH_CKPT_OPENCLIP14_FMOW 
+    elif args.backbone_name == 'longclip-fmow':
+        args.backbone = 'openclip'
+        args.clip_path = PATH_CKPT_LONGCLIP14_FMOW 
         
     if args.dataset == 'eurosat':
         args.dataset_root = '/home/gridsan/manderson/ovdsat/data/eurosat/EuroSAT'
