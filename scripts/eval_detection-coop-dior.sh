@@ -13,10 +13,11 @@ dataset=dior
 prototype_type=coop_prototypes
 finetune_type=boxes
 backbone=remoteclip-14
+bg=no_bg #with_bg
 
 for N in 5 10 30
 do
-    for M in 4 5
+    for M in 1 2 3 4 5
     do
         python eval_detection.py \
             --dataset ${dataset} \
@@ -31,6 +32,6 @@ do
             --num_workers 8 \
             --scale_factor 1 \
             --t
-            #--bg_prototypes_path run/${prototype_type}/${finetune_type}/${dataset}/bg_prototypes_${backbone}.pt \
     done
 done
+#--bg_prototypes_path run/${prototype_type}/${finetune_type}/${bg}/${dataset}_N${N}-${M}/bg_prototypes_${backbone}.pt \

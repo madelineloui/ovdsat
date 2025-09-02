@@ -42,7 +42,7 @@ class OVDBaseClassifier(torch.nn.Module):
 
     def get_cosim_mini_batch(self, feats, embeddings, batch_size=100, normalize=False):
         '''
-        Compute cosine similarity between features and protorype embeddings in mini-batches to avoid memory issues.
+        Compute cosine similarity between features and prototype embeddings in mini-batches to avoid memory issues.
 
         Args:
             feats (torch.Tensor): Features with shape (B, K, D)
@@ -60,43 +60,53 @@ class OVDBaseClassifier(torch.nn.Module):
             end_idx = min(start_idx + batch_size, num_classes)
 
             embedding_batch = embeddings[start_idx:end_idx]  # Get a batch of embeddings
+            
+#             ### Original dot product
+#             if not self.text: 
+#                 # Reshape and broadcast for cosine similarity
+#                 B, K, D = feats.shape
+#                 features_reshaped = feats.view(B, 1, K, D)
+#                 embedding_reshaped = embedding_batch.view(1, end_idx - start_idx, 1, D)
 
-            # Reshape and broadcast for cosine similarity
-            B, K, D = feats.shape
-            features_reshaped = feats.view(B, 1, K, D)
-            embedding_reshaped = embedding_batch.view(1, end_idx - start_idx, 1, D)
-            
-            # if 'customclip' in self.backbone_type:
-            #     print('here')
-            #     dot_product = (features_reshaped @ embedding_reshaped).squeeze(-1)
-            #     dot_product *= self.logit_scale.exp()
-            # else:
-            
-            # print('in classifier')
-            # print(feats.shape)
-            # print(embedding_batch.shape)
-            # print(features_reshaped.shape)
-            # print(embedding_reshaped.shape)
-            # print(torch.mean(features_reshaped)) #image
-            # print(torch.mean(embedding_reshaped)) #text
-            
-            # Compute dot product (cosine similarity without normalization)
-            dot_product = (features_reshaped * embedding_reshaped).sum(dim=3)
-            
-            #print(dot_product.shape)
+#                 # Compute dot product (cosine similarity without normalization)
+#                 dot_product = (features_reshaped * embedding_reshaped).sum(dim=3)
 
-            if normalize and not 'customclip' in self.backbone_type:
-                # Compute norms
-                feats_norm = torch.norm(features_reshaped, dim=3, keepdim=True).squeeze(-1)
-                embedding_norm = torch.norm(embedding_reshaped, dim=3, keepdim=True).squeeze(-1)
-                # Normalize
-                dot_product /= (feats_norm * embedding_norm + 1e-8)  # Add epsilon for numerical stability
-                
-            if self.logit_scale:
-                dot_product *= self.logit_scale.exp()
-                
-            #print(torch.mean(dot_product))
+#                 if normalize and not 'customclip' in self.backbone_type:
+#                     # Compute norms
+#                     feats_norm = torch.norm(features_reshaped, dim=3, keepdim=True).squeeze(-1)
+#                     embedding_norm = torch.norm(embedding_reshaped, dim=3, keepdim=True).squeeze(-1)
+#                     # Normalize
+#                     dot_product /= (feats_norm * embedding_norm + 1e-8)  # Add epsilon for numerical stability
+                    
+#                 if self.logit_scale: # for coop, add the logit scale
+#                     dot_product *= self.logit_scale.exp()
+ 
+#             
+#             else:
+            # print('DEBUG')
+            # print('feats', feats.shape)
+            # print('embedding_batch', embedding_batch.shape)
             
+            ### Modified to exactly match CLIP cosine similarity in CoOp
+            
+            feat_norm = (feats / feats.norm(dim=-1, keepdim=True))
+            embed_norm = embedding_batch / embedding_batch.norm(dim=-1, keepdim=True)
+
+            # print('feat_norm', feat_norm.shape)
+            # print('embed_norm', embed_norm.shape)
+
+            feat_norm = feat_norm.float()
+            embed_norm = embed_norm.float()
+
+            dot_product = (feat_norm @ embed_norm.t())
+            dot_product = dot_product.transpose(1, 2)
+
+            logit_scale = getattr(self.backbone, 'logit_scale', None)
+            if logit_scale is not None:
+                dot_product *= logit_scale.exp()
+                
+                
+                
             # Append the similarity scores for this batch to the list
             cosim_list.append(dot_product)
 
