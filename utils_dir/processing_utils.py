@@ -26,10 +26,15 @@ def filter_boxes(boxes, classes, scores, target_size, num_labels, box_conf_thres
 
 
 def map_labels_to_prototypes(dataset_categories, model_prototypes, labels):
-    #print(dataset_categories)
+    # print('dataset_categories')
+    # print(dataset_categories)
+    # print('model_prototypes')
+    # print(model_prototypes)
     mapped_labels = []
     # Create a reverse mapping from class names to indices for the dataset categories
     dataset_categories_reverse = {v: k for k, v in model_prototypes.items()}
+    # print('dataset_categories_reverse')
+    # print(dataset_categories_reverse)
     # Map dataset category indices to model prototype indices
     for batch_labels in labels:
         mapped_batch_labels = []
@@ -37,6 +42,10 @@ def map_labels_to_prototypes(dataset_categories, model_prototypes, labels):
             if label == -1:
                 mapped_batch_labels.append(-1)
             elif label.item() in dataset_categories and dataset_categories[label.item()] in dataset_categories_reverse:
+                # print('label')
+                # print(label)
+                # print('label.item()')
+                # print(label.item())
                 class_name = dataset_categories[label.item()]
                 if class_name in dataset_categories_reverse:
                     mapped_batch_labels.append(dataset_categories_reverse[class_name])

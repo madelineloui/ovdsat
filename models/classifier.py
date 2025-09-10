@@ -61,49 +61,49 @@ class OVDBaseClassifier(torch.nn.Module):
 
             embedding_batch = embeddings[start_idx:end_idx]  # Get a batch of embeddings
             
-#             ### Original dot product
-#             if not self.text: 
-#                 # Reshape and broadcast for cosine similarity
-#                 B, K, D = feats.shape
-#                 features_reshaped = feats.view(B, 1, K, D)
-#                 embedding_reshaped = embedding_batch.view(1, end_idx - start_idx, 1, D)
+            ### Original dot product
+            if not self.text: 
+                # Reshape and broadcast for cosine similarity
+                B, K, D = feats.shape
+                features_reshaped = feats.view(B, 1, K, D)
+                embedding_reshaped = embedding_batch.view(1, end_idx - start_idx, 1, D)
 
-#                 # Compute dot product (cosine similarity without normalization)
-#                 dot_product = (features_reshaped * embedding_reshaped).sum(dim=3)
+                # Compute dot product (cosine similarity without normalization)
+                dot_product = (features_reshaped * embedding_reshaped).sum(dim=3)
 
-#                 if normalize and not 'customclip' in self.backbone_type:
-#                     # Compute norms
-#                     feats_norm = torch.norm(features_reshaped, dim=3, keepdim=True).squeeze(-1)
-#                     embedding_norm = torch.norm(embedding_reshaped, dim=3, keepdim=True).squeeze(-1)
-#                     # Normalize
-#                     dot_product /= (feats_norm * embedding_norm + 1e-8)  # Add epsilon for numerical stability
-                    
-#                 if self.logit_scale: # for coop, add the logit scale
-#                     dot_product *= self.logit_scale.exp()
+                if normalize and not 'customclip' in self.backbone_type:
+                    # Compute norms
+                    feats_norm = torch.norm(features_reshaped, dim=3, keepdim=True).squeeze(-1)
+                    embedding_norm = torch.norm(embedding_reshaped, dim=3, keepdim=True).squeeze(-1)
+                    # Normalize
+                    dot_product /= (feats_norm * embedding_norm + 1e-8)  # Add epsilon for numerical stability
+
+                if self.logit_scale: # for coop, add the logit scale
+                    dot_product *= self.logit_scale.exp()
  
-#             
-#             else:
+             
+            else:
             # print('DEBUG')
             # print('feats', feats.shape)
             # print('embedding_batch', embedding_batch.shape)
             
-            ### Modified to exactly match CLIP cosine similarity in CoOp
-            
-            feat_norm = (feats / feats.norm(dim=-1, keepdim=True))
-            embed_norm = embedding_batch / embedding_batch.norm(dim=-1, keepdim=True)
+                ### Modified to exactly match CLIP cosine similarity in CoOp
 
-            # print('feat_norm', feat_norm.shape)
-            # print('embed_norm', embed_norm.shape)
+                feat_norm = (feats / feats.norm(dim=-1, keepdim=True))
+                embed_norm = embedding_batch / embedding_batch.norm(dim=-1, keepdim=True)
 
-            feat_norm = feat_norm.float()
-            embed_norm = embed_norm.float()
+                # print('feat_norm', feat_norm.shape)
+                # print('embed_norm', embed_norm.shape)
 
-            dot_product = (feat_norm @ embed_norm.t())
-            dot_product = dot_product.transpose(1, 2)
+                feat_norm = feat_norm.float()
+                embed_norm = embed_norm.float()
 
-            logit_scale = getattr(self.backbone, 'logit_scale', None)
-            if logit_scale is not None:
-                dot_product *= logit_scale.exp()
+                dot_product = (feat_norm @ embed_norm.t())
+                dot_product = dot_product.transpose(1, 2)
+
+                logit_scale = getattr(self.backbone, 'logit_scale', None)
+                if logit_scale is not None:
+                    dot_product *= logit_scale.exp()
                 
                 
                 

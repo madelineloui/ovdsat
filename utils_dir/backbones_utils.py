@@ -17,6 +17,9 @@ model_path = os.path.join("/home/gridsan/manderson/ovdsat/Long-CLIP/model")
 sys.path.append(os.path.abspath(model_path))
 #import longclip
 
+# Import clip used in CoOp
+from CoOp.clip import clip
+
 # Paths to the pre-trained models
 PATH_CKPT_CLIP14 = 'weights/clip-vit-large-patch14'
 PATH_CKPT_CLIP32 = 'weights/clip-vit-base-patch32'
@@ -38,6 +41,29 @@ PATH_CKPT_CLIP14_TEST = '/home/gridsan/manderson/train-CLIP/run/fmow/fmow-test-4
 PATH_CKPT_CLIP14_FMOW = '/home/gridsan/manderson/train-CLIP/run/fmow/fmow-test-4.pth'
 PATH_CKPT_OPENCLIP14_FMOW = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-fmow-4.pt'
 PATH_CKPT_LONGCLIP14_FMOW = '/home/gridsan/manderson/ovdsat/Long-CLIP/checkpoints/005-07--05_28_20_longclip.pt'
+
+
+def load_clip_to_cpu():
+    
+    backbone_name = 'ViT-L/14'
+    url = clip._MODELS[backbone_name]
+    model_path = clip._download(url)
+
+    try:
+        # loading JIT archive
+        model = torch.jit.load(model_path, map_location="cpu").eval()
+        state_dict = None
+
+    except RuntimeError:
+        state_dict = torch.load(model_path, map_location="cpu")
+
+    model = clip.build_model(state_dict or model.state_dict())
+    
+    ## TODO dont hardcode
+    state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/RemoteCLIP-ViT-L-14.pt', map_location="cpu")
+    model = clip.build_model(state_dict)
+        
+    return model
 
 
 def load_backbone(backbone_type):
@@ -369,6 +395,14 @@ def extract_clip_features(images, model, backbone_type, tile_size=224, text=Fals
     # Create full image features tensor and a counter for aggregation
     output_features = torch.zeros((B, image_size // patch_size, image_size // patch_size, D)).to(images.device)
     count_tensor = torch.zeros((B, image_size // patch_size, image_size // patch_size,)).to(images.device)
+    
+    # TODO: use exact model from CoOp
+    if text:
+        model = load_clip_to_cpu()
+        model = model.to(images.device)
+        model.float()
+        print('DEBUG')
+        print('load_clip_to_cpu()')
 
     # Process tiles through CLIP
     with torch.no_grad():
@@ -394,8 +428,13 @@ def extract_clip_features(images, model, backbone_type, tile_size=224, text=Fals
                 #if backbone_type == 'clip-32' or backbone_type == 'clip-14':
                 if 'georsclip' in backbone_type or 'remoteclip' in backbone_type or 'openclip' in backbone_type or 'customclip' in backbone_type:
                     if text:
-                        image_features = model.encode_image(tile).unsqueeze(1)
-                        #print(image_features.shape)
+                        # image_features = model.encode_image(tile).unsqueeze(1)
+                        # print('DEBUG: original image feature shape')
+                        # print(image_features.shape)
+                        #model = model.to(dtype=tile.dtype)
+                        image_features = model.visual(tile).unsqueeze(1)
+                        # print('DEBUG: new image feature shape')
+                        # print(image_features.shape)
                         #print(torch.mean(image_features))
                     else:
                         image_features = model(tile)[-1]
