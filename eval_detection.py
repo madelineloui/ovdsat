@@ -11,6 +11,13 @@ from utils_dir.metrics import ap_per_class, box_iou
 from utils_dir.processing_utils import map_labels_to_prototypes
 
 
+# For viz
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+save_dir = "/home/gridsan/manderson/ovdsat/figures/dior/detections"
+os.makedirs(save_dir, exist_ok=True)
+
+
 def prepare_model(args):
     '''
     Loads the model to evaluate given the input arguments and returns it.
@@ -99,7 +106,7 @@ def eval_detection(args, model, val_dataloader, device):
     stats = []
     with torch.no_grad():
         for i, batch in tqdm(enumerate(val_dataloader), total=len(val_dataloader), leave=False):
-            if i > 50: # TODO debug
+            if i > 0: # TODO debug
                 break
             if args.classification != 'mask':
                 images, boxes, labels, metadata = batch
@@ -128,6 +135,7 @@ def eval_detection(args, model, val_dataloader, device):
             #print('preds\n', preds)
 
             for si, pred in enumerate(preds):
+                
                 keep = labels[si] > -1
                 targets = labels[si, keep]
                 targets_orig = targets.clone()
@@ -156,6 +164,42 @@ def eval_detection(args, model, val_dataloader, device):
                     correct = process_batch(predn, labelsn, iouv)
 
                 stats.append((correct, pred[:, 4], pred[:, 5], targets_orig[:]))
+                
+                
+                # Viz for each image
+                #img_np = images[si].detach().cpu().permute(1, 2, 0).numpy()
+                img_np = images[si].detach().cpu()[[2, 1, 0], :, :].permute(1, 2, 0).numpy()
+                if img_np.max() > 1:  # normalize if values are 0–255
+                    img_np = img_np / 255.0
+
+                fig, ax = plt.subplots(1, 1, figsize=(8, 8))
+                ax.imshow(img_np)
+
+                if pred is not None and len(pred) > 0:
+                    pred = pred.detach().cpu()
+
+                    for box in pred:
+                        x1, y1, x2, y2, score, label = box.tolist()
+
+                        # draw rectangle
+                        rect = patches.Rectangle(
+                            (x1, y1), x2 - x1, y2 - y1,
+                            linewidth=2, edgecolor="red", facecolor="none"
+                        )
+                        ax.add_patch(rect)
+
+                        # add label and score
+                        ax.text(
+                            x1, max(y1 - 5, 0),
+                            f"{names[int(label)]}: {score:.2f}",
+                            color="yellow", fontsize=8, weight="bold",
+                            bbox=dict(facecolor="black", alpha=0.5, pad=1)
+                        )
+
+                # Save instead of plt.show()
+                save_path = os.path.join(save_dir, f"batch{i}_img{si}.png")
+                plt.savefig(save_path, bbox_inches="tight", dpi=150)
+                plt.close(fig)  # free memory
                 
     # Use original categories
     names = model.classifier.get_categories()

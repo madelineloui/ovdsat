@@ -124,6 +124,10 @@ class OVDDetector(torch.nn.Module):
                 # Apply non maximum suppression
                 nms_results = non_max_suppression(pred_boxes_with_scores.unsqueeze(0), iou_thres=iou_thr, conf_thres=conf_thres)
                 processed_predictions.append(nms_results[0])
+                
+                print('debug processed_predictions')
+                print(processed_predictions)
+                #print(processed_predictions[0].shape)
 
             del preds, scores, classes, proposals, proposals_scores
             if self.classification == 'obb':

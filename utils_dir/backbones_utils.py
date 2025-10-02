@@ -334,7 +334,10 @@ def prepare_image_for_backbone(input_tensor, backbone_type, text=False):
     if text:
         print('applying coop norm!!!')
         print(input_tensor.shape)
-        normalized_tensor = coop_normalize(input_tensor/255.0) # TODO divide by 255 here so we don't mess with rpn?
+        # TODO Convert to RGB to match CoOp
+        input_tensor = input_tensor[:, [2, 1, 0], :, :]
+        # TODO divide by 255 here
+        normalized_tensor = coop_normalize(input_tensor/255.0)
         print('normalized_tensor.mean()')
         print(normalized_tensor.mean())
         print(normalized_tensor[0,:5,:5,:5])

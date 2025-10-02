@@ -42,7 +42,7 @@ class BaseDataset(Dataset):
         path = os.path.join(self.images_dir, filename)
         image = cv2.imread(path)
         # print('debug cv2 cvtcolor')
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) # TODO convert to RGB to match CoOp
+        #image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) # TODO convert to RGB to match CoOp
         # img = Image.open(path).convert("RGB") # TODO try pil?
         # to_tensor = T.ToTensor()
         # img = to_tensor(img)

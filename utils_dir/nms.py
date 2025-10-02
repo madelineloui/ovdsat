@@ -74,6 +74,15 @@ def non_max_suppression(
     Returns:
          list of detections, on (n,6) tensor per image [xyxy, conf, cls]
     """
+    
+    print('NMS debug')
+    print(conf_thres, iou_thres, max_det)
+    
+    print()
+    print(prediction.shape)
+    #print(prediction[0][0])
+    print()
+    
 
     # Checks
     assert 0 <= conf_thres <= 1, f'Invalid Confidence threshold {conf_thres}, valid values are between 0.0 and 1.0'
@@ -136,6 +145,8 @@ def non_max_suppression(
             i, j = (x[:, 5:mi] > conf_thres).nonzero(as_tuple=False).T
             x = torch.cat((box[i], x[i, 5 + j, None], j[:, None].float(), mask[i]), 1)
         else:  # best class only
+            print('manually set conf_thres=5 here for debugging!')
+            conf_thres = 5
             conf, j = x[:, 5:mi].max(1, keepdim=True)
             x = torch.cat((box, conf, j.float(), mask), 1)[conf.view(-1) > conf_thres]
 
