@@ -20,6 +20,12 @@ sys.path.append(os.path.abspath(model_path))
 # Import clip used in CoOp
 from CoOp.clip import clip
 
+# Normalization from CoOp
+from torchvision.transforms import Normalize
+PIXEL_MEAN = [0.48145466, 0.4578275, 0.40821073]
+PIXEL_STD = [0.26862954, 0.26130258, 0.27577711]
+coop_normalize = Normalize(mean=PIXEL_MEAN, std=PIXEL_STD)
+
 # Paths to the pre-trained models
 PATH_CKPT_CLIP14 = 'weights/clip-vit-large-patch14'
 PATH_CKPT_CLIP32 = 'weights/clip-vit-base-patch32'
@@ -313,7 +319,7 @@ def load_backbone_and_tokenizer(backbone_type):
         parameter.requires_grad = False
     return model, tokenizer
  
-def prepare_image_for_backbone(input_tensor, backbone_type):
+def prepare_image_for_backbone(input_tensor, backbone_type, text=False):
     '''
     Preprocess an image for the backbone model given an input tensor and the backbone type.
 
@@ -324,26 +330,33 @@ def prepare_image_for_backbone(input_tensor, backbone_type):
     
     if input_tensor.shape[1] == 4:
         input_tensor = input_tensor[:, :3, :, :]  # Discard the alpha channel (4th channel)
-
-    # Define mean and std for normalization depending on the backbone type
-    if 'dinov2' in backbone_type:
-        mean = torch.tensor([0.485, 0.456, 0.406]).to(input_tensor.device)
-        std = torch.tensor([0.229, 0.224, 0.225]).to(input_tensor.device)
-    elif 'customclip' in backbone_type:
-        mean = torch.tensor([0.4182007312774658, 0.4214799106121063, 0.3991275727748871]).to(input_tensor.device)
-        std = torch.tensor([0.28774282336235046, 0.27541765570640564, 0.2764017581939697]).to(input_tensor.device)
-    else:
-        mean = torch.tensor([0.48145466, 0.4578275, 0.40821073]).to(input_tensor.device)
-        std = torch.tensor([0.26862954, 0.26130258, 0.27577711]).to(input_tensor.device)
         
-    # mean = torch.tensor([0.485, 0.456, 0.406]).to(input_tensor.device) if 'dinov2' in backbone_type else torch.tensor([0.48145466, 0.4578275, 0.40821073]).to(input_tensor.device)
-    # std = torch.tensor([0.229, 0.224, 0.225]).to(input_tensor.device) if 'dinov2' in backbone_type else torch.tensor([0.26862954, 0.26130258, 0.27577711]).to(input_tensor.device)
+    if text:
+        print('applying coop norm!!!')
+        print(input_tensor.shape)
+        normalized_tensor = coop_normalize(input_tensor/255.0) # TODO divide by 255 here so we don't mess with rpn?
+        print('normalized_tensor.mean()')
+        print(normalized_tensor.mean())
+        print(normalized_tensor[0,:5,:5,:5])
     
-    # Scale the values to range from 0 to 1
-    input_tensor /= 255.0
+    else:
     
-    # Normalize the tensor
-    normalized_tensor = (input_tensor - mean[:, None, None]) / std[:, None, None]
+        # Define mean and std for normalization depending on the backbone type
+        if 'dinov2' in backbone_type:
+            mean = torch.tensor([0.485, 0.456, 0.406]).to(input_tensor.device)
+            std = torch.tensor([0.229, 0.224, 0.225]).to(input_tensor.device)
+        elif 'customclip' in backbone_type:
+            mean = torch.tensor([0.4182007312774658, 0.4214799106121063, 0.3991275727748871]).to(input_tensor.device)
+            std = torch.tensor([0.28774282336235046, 0.27541765570640564, 0.2764017581939697]).to(input_tensor.device)
+        else:
+            mean = torch.tensor([0.48145466, 0.4578275, 0.40821073]).to(input_tensor.device)
+            std = torch.tensor([0.26862954, 0.26130258, 0.27577711]).to(input_tensor.device)
+
+        # Scale the values to range from 0 to 1
+        input_tensor /= 255.0
+
+        # Normalize the tensor
+        normalized_tensor = (input_tensor - mean[:, None, None]) / std[:, None, None]
 
     return normalized_tensor
 
@@ -401,10 +414,23 @@ def extract_clip_features(images, model, backbone_type, tile_size=224, text=Fals
         model = load_clip_to_cpu()
         model = model.to(images.device)
         model.float()
-        print('DEBUG')
-        print('load_clip_to_cpu()')
+        # print('DEBUG')
+        # print('load_clip_to_cpu()')
 
     # Process tiles through CLIP
+    
+    print('patch_size')
+    print(patch_size)
+    print('num_tiles_side')
+    print(num_tiles_side)
+    print('tile_size')
+    print(tile_size)
+    print('image_size')
+    print(image_size)
+    print('B')
+    print(B)
+    print('D')
+    print(D)
     with torch.no_grad():
         for i in range(num_tiles_side):
             for j in range(num_tiles_side):
@@ -423,31 +449,31 @@ def extract_clip_features(images, model, backbone_type, tile_size=224, text=Fals
                 
                 # Extract the tile from the original image
                 tile = images[:, :, start_i:end_i, start_j:end_j]
+                
+                if text:
+                    #image_features = model.encode_image(tile).unsqueeze(1)
+                    # print('DEBUG: original image feature shape')
+                    # print(image_features.shape)
+                    #model = model.to(dtype=tile.dtype)
+                    #print('clip features extract')
+                    #print(model.visual.conv1.weight[0, 0, :5, :5])
+                    image_features = model.visual(tile).unsqueeze(1)
+                    # print('DEBUG: new image feature shape')
+                    # print(image_features.shape)
+                    #print(torch.mean(image_features))
+                else:
     
-                # Extract CLIP's features before token pooling
-                #if backbone_type == 'clip-32' or backbone_type == 'clip-14':
-                if 'georsclip' in backbone_type or 'remoteclip' in backbone_type or 'openclip' in backbone_type or 'customclip' in backbone_type:
-                    if text:
-                        # image_features = model.encode_image(tile).unsqueeze(1)
-                        # print('DEBUG: original image feature shape')
-                        # print(image_features.shape)
-                        #model = model.to(dtype=tile.dtype)
-                        image_features = model.visual(tile).unsqueeze(1)
-                        # print('DEBUG: new image feature shape')
-                        # print(image_features.shape)
-                        #print(torch.mean(image_features))
+                    # Extract CLIP's features before token pooling
+                    #if backbone_type == 'clip-32' or backbone_type == 'clip-14':
+                    if 'georsclip' in backbone_type or 'remoteclip' in backbone_type or 'openclip' in backbone_type or 'customclip' in backbone_type:
+                        image_features = model(tile)[-1]
+                    elif 'longclip' in backbone_type:
+                        tile = tile.half()
+                        image_features = model(tile, return_tokens=True)
+                    elif 'clip-32' in backbone_type or 'clip-14' in backbone_type:
+                        image_features = model(tile).last_hidden_state[:, 1:]
                     else:
                         image_features = model(tile)[-1]
-                elif 'longclip' in backbone_type:
-                    tile = tile.half()
-                    image_features = model(tile, return_tokens=True)
-                elif 'clip-32' in backbone_type or 'clip-14' in backbone_type:
-                    if text:
-                        image_features = model.get_image_features(tile).unsqueeze(1)
-                    else:
-                        image_features = model(tile).last_hidden_state[:, 1:]
-                else:
-                    image_features = model(tile)[-1]
                     
                     
                 #print(f'\nFEATURE SHAPE: {image_features.shape}\n') #- TODO for debugging
@@ -469,6 +495,9 @@ def extract_clip_features(images, model, backbone_type, tile_size=224, text=Fals
     output_features /= count_tensor.unsqueeze(-1)
     
     #print('output_features', output_features.shape, torch.mean(output_features))
+    print('output_features')
+    print(output_features.shape)
+    print(output_features[0,:5,:5,:5])    
     
     return output_features, count_tensor
 

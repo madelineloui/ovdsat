@@ -107,6 +107,11 @@ def eval_detection(args, model, val_dataloader, device):
             else:
                 images, _, labels, masks, _ = batch
                 loc = masks.float().to(device)
+                
+            print('DEBUG images in this batch')
+            images, boxes, labels, metadata_list = batch
+            for path in metadata["impath"]:
+                print(path)
             
             # print(labels)
             # print('DEBUG')
@@ -144,7 +149,9 @@ def eval_detection(args, model, val_dataloader, device):
                     predn[:,-1] = reclassify(predn[:,-1], sc_cat)
                     
                 if nl:
+                    keep = keep.to(boxes.device)
                     tbox = custom_xywh2xyxy(boxes[si, keep, :])  # target boxes
+                    tbox = tbox.to(targets.device)
                     labelsn = torch.cat((targets[..., None], tbox), 1)  # native-space labels
                     correct = process_batch(predn, labelsn, iouv)
 

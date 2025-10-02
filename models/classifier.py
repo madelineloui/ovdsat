@@ -54,6 +54,13 @@ class OVDBaseClassifier(torch.nn.Module):
         num_feats = feats.shape[0]
         num_classes = embeddings.shape[0]
         patch_2d_size = int(np.sqrt(feats.shape[1]))
+        
+        print('feats.shape')
+        print(feats.shape)
+        print('num_feats')
+        print(num_feats)
+        print('batch_size')
+        print(batch_size)
 
         cosim_list = []
         for start_idx in range(0, num_classes, batch_size):
@@ -91,6 +98,12 @@ class OVDBaseClassifier(torch.nn.Module):
 
                 feat_norm = (feats / feats.norm(dim=-1, keepdim=True))
                 embed_norm = embedding_batch / embedding_batch.norm(dim=-1, keepdim=True)
+                
+                print('debug image embedding norm mean')
+                print(feat_norm.mean())
+                
+                print('debug text embedding norm mean')
+                print(embed_norm.mean())
 
                 # print('feat_norm', feat_norm.shape)
                 # print('embed_norm', embed_norm.shape)
@@ -101,7 +114,10 @@ class OVDBaseClassifier(torch.nn.Module):
                 dot_product = (feat_norm @ embed_norm.t())
                 dot_product = dot_product.transpose(1, 2)
 
+                # TODO is this matching coop? 4.6028
                 logit_scale = getattr(self.backbone, 'logit_scale', None)
+                print('logit scale debug')
+                print(logit_scale)
                 if logit_scale is not None:
                     dot_product *= logit_scale.exp()
                 
@@ -118,6 +134,9 @@ class OVDBaseClassifier(torch.nn.Module):
 
         # Interpolate cosine similarity maps to original resolution
         cosim = F.interpolate(cosim, size=self.target_size, mode='bicubic')
+        print('cosim debug')
+        print(cosim.shape)
+        print(cosim[0,:5,:5,:5])
 
         return cosim
     
@@ -144,8 +163,11 @@ class OVDBoxClassifier(OVDBaseClassifier):
             scales.append(cosine_sim)
 
         cosine_sim = torch.stack(scales).mean(dim=0)
+        
+        print('\ncosine_sim.shape')
+        print(cosine_sim.shape)
 
-         # Gather similarity values inside each box and compute average box similarity
+        # Gather similarity values inside each box and compute average box similarity
         box_similarities = []
         B = images.shape[0]
         for b in range(B):

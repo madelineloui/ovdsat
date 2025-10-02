@@ -31,7 +31,8 @@ class OVDDetector(torch.nn.Module):
         self.ignore_index = ignore_index
         self.class_names = prototypes['label_names']
         self.num_classes = len(self.class_names)
-        self.backbone_type = backbone_type        
+        self.backbone_type = backbone_type  
+        self.text = text
 
         if classification not in ['box', 'mask', 'obb']:
             raise ValueError('Invalid classification type. Must be either "box", "obb" or "mask"')
@@ -72,6 +73,15 @@ class OVDDetector(torch.nn.Module):
             conf_thres (float): Confidence threshold for NMS
             box_conf_threshold (float): Confidence threshold for box proposals
         '''
+        
+        print('box_conf_threshold')
+        print(box_conf_threshold)
+        
+        print('iou_thr')
+        print(iou_thr)
+        
+        print('conf_thres')
+        print(conf_thres)
 
         with torch.no_grad():
             # Generate box proposals
@@ -84,7 +94,7 @@ class OVDDetector(torch.nn.Module):
 
             # Classify boxes with classifier
             B, num_proposals = proposals_scores.shape
-            preds = self.classifier(prepare_image_for_backbone(images, self.backbone_type), proposals, normalize=True, aggregation=aggregation)
+            preds = self.classifier(prepare_image_for_backbone(images, self.backbone_type, text=self.text), proposals, normalize=True, aggregation=aggregation)
 
             if num_proposals == 0:
                 return [torch.tensor([], device=images.device) for _ in range(B)]

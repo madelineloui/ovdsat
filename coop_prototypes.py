@@ -239,13 +239,13 @@ def main(args):
     model = model.to(device)
     model.eval()
     
-    # Build text prototypes
-    obj_category_dict = build_coop_prototypes(args, model, device)
-    #obj_category_dict, bg_category_dict = build_coop_prototypes(args, model, device)
-
     # Create save directory if it does not exist
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
+    
+    # Build text prototypes
+    obj_category_dict = build_coop_prototypes(args, model, device)
+    #obj_category_dict, bg_category_dict = build_coop_prototypes(args, model, device)
 
     # Save background prototypes if specified
     # if args.store_bg_prototypes:
