@@ -9,13 +9,8 @@ from datasets import get_base_new_classes
 from utils_dir.nms import custom_xywh2xyxy
 from utils_dir.metrics import ap_per_class, box_iou
 from utils_dir.processing_utils import map_labels_to_prototypes
-
-
-# For viz
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-save_dir = "/home/gridsan/manderson/ovdsat/figures/dior/detections"
-os.makedirs(save_dir, exist_ok=True)
 
 
 def prepare_model(args):
@@ -78,8 +73,13 @@ def reclassify(labels, sc_cat):
     return sc_labels
 
 def eval_detection(args, model, val_dataloader, device):
+    
+    viz_dir = f'{args.save_dir}/figures'
+    os.makedirs(viz_dir, exist_ok=True)
+    
     seen = 0
     iouv = torch.linspace(0.5, 0.95, 10, device=device)  # iou vector for mAP@0.5:0.95
+    #iouv = torch.linspace(0.25, 0.95, 10, device=device) # try mAP@0.25:0.95
     
     sc = args.sc
     
@@ -106,7 +106,7 @@ def eval_detection(args, model, val_dataloader, device):
     stats = []
     with torch.no_grad():
         for i, batch in tqdm(enumerate(val_dataloader), total=len(val_dataloader), leave=False):
-            if i > 0: # TODO debug
+            if i > 50: # TODO debug
                 break
             if args.classification != 'mask':
                 images, boxes, labels, metadata = batch
@@ -115,10 +115,10 @@ def eval_detection(args, model, val_dataloader, device):
                 images, _, labels, masks, _ = batch
                 loc = masks.float().to(device)
                 
-            print('DEBUG images in this batch')
-            images, boxes, labels, metadata_list = batch
-            for path in metadata["impath"]:
-                print(path)
+            # print('DEBUG images in this batch')
+            # images, boxes, labels, metadata_list = batch
+            # for path in metadata["impath"]:
+            #     print(path)
             
             # print(labels)
             # print('DEBUG')
@@ -166,15 +166,54 @@ def eval_detection(args, model, val_dataloader, device):
                 stats.append((correct, pred[:, 4], pred[:, 5], targets_orig[:]))
                 
                 
-                # Viz for each image
+                ### Compute exact per-image AP@0.5
+                # Extract per-image stats
+                correct_img = correct[:, [0]].cpu().numpy()  # Only IoU=0.5
+                conf_img = pred[:, 4].detach().cpu().numpy()
+                pred_cls_img = pred[:, 5].detach().cpu().numpy()
+                true_cls_img = targets_orig.cpu().numpy()
+                # If there are no positive samples, skip AP computation
+                if len(true_cls_img) > 0 and len(pred_cls_img) > 0:
+                    _, _, _, _, _, ap_img, ap_class_img = ap_per_class(
+                        correct_img, conf_img, pred_cls_img, true_cls_img, names=names
+                    )
+                    image_map50 = ap_img[:, 0].mean()  # mean AP@0.5 across classes
+                else:
+                    image_map50 = 0.0
+                
+                
+                ### Viz for each image
                 #img_np = images[si].detach().cpu().permute(1, 2, 0).numpy()
                 img_np = images[si].detach().cpu()[[2, 1, 0], :, :].permute(1, 2, 0).numpy()
+                # Clip to 1st–99th percentile range to remove outliers
+                low, high = np.percentile(img_np, [1, 99])
+                img_np = np.clip(img_np, low, high)
                 if img_np.max() > 1:  # normalize if values are 0–255
                     img_np = img_np / 255.0
 
                 fig, ax = plt.subplots(1, 1, figsize=(8, 8))
                 ax.imshow(img_np)
+                
+                ### Draw ground-truth boxes (green)
+                if nl > 0:
+                    tbox_np = tbox.cpu().numpy()
+                    targets_np = targets_orig.cpu().numpy()
+                    for j, gt_box in enumerate(tbox_np):
+                        x1, y1, x2, y2 = gt_box.tolist()
+                        gt_label = int(targets_np[j])
+                        rect = patches.Rectangle(
+                            (x1, y1), x2 - x1, y2 - y1,
+                            linewidth=2, edgecolor="lime", facecolor="none"
+                        )
+                        ax.add_patch(rect)
+                        ax.text(
+                            x1, max(y1 - 5, 0),
+                            f"GT: {names[gt_label]}",
+                            color="white", fontsize=7, weight="bold",
+                            bbox=dict(facecolor="green", alpha=0.5, pad=1)
+                        )
 
+                ### Draw predicted boxes (red)
                 if pred is not None and len(pred) > 0:
                     pred = pred.detach().cpu()
 
@@ -195,9 +234,11 @@ def eval_detection(args, model, val_dataloader, device):
                             color="yellow", fontsize=8, weight="bold",
                             bbox=dict(facecolor="black", alpha=0.5, pad=1)
                         )
+                        
+                        ax.set_title(f"mAP@0.5 = {image_map50:.3f}", color='white', fontsize=12, weight='bold', backgroundcolor='black')
 
                 # Save instead of plt.show()
-                save_path = os.path.join(save_dir, f"batch{i}_img{si}.png")
+                save_path = os.path.join(viz_dir, f"batch{i}_img{si}.png")
                 plt.savefig(save_path, bbox_inches="tight", dpi=150)
                 plt.close(fig)  # free memory
                 
@@ -305,7 +346,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_workers', type=int, default=8)
     parser.add_argument('--scale_factor', nargs='+', type=int, default=2)
     parser.add_argument('--iou_thr', type=float, default=0.2)
-    parser.add_argument('--conf_thres', type=float, default=0.001)
+    parser.add_argument('--conf_thres', type=float, default=0.1)
     parser.add_argument('--t', action='store_true', default=False) # if using text
     parser.add_argument('--sc', action='store_true', default=False)
     args = parser.parse_args()

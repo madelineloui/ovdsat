@@ -74,14 +74,14 @@ class OVDDetector(torch.nn.Module):
             box_conf_threshold (float): Confidence threshold for box proposals
         '''
         
-        print('box_conf_threshold')
-        print(box_conf_threshold)
+#         print('box_conf_threshold')
+#         print(box_conf_threshold)
         
-        print('iou_thr')
-        print(iou_thr)
+#         print('iou_thr')
+#         print(iou_thr)
         
-        print('conf_thres')
-        print(conf_thres)
+#         print('conf_thres')
+#         print(conf_thres)
 
         with torch.no_grad():
             # Generate box proposals
@@ -125,9 +125,9 @@ class OVDDetector(torch.nn.Module):
                 nms_results = non_max_suppression(pred_boxes_with_scores.unsqueeze(0), iou_thres=iou_thr, conf_thres=conf_thres)
                 processed_predictions.append(nms_results[0])
                 
-                print('debug processed_predictions')
-                print(processed_predictions)
-                #print(processed_predictions[0].shape)
+                # print('debug processed_predictions')
+                # print(processed_predictions)
+                # print(processed_predictions[0].shape)
 
             del preds, scores, classes, proposals, proposals_scores
             if self.classification == 'obb':

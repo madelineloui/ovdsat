@@ -332,15 +332,15 @@ def prepare_image_for_backbone(input_tensor, backbone_type, text=False):
         input_tensor = input_tensor[:, :3, :, :]  # Discard the alpha channel (4th channel)
         
     if text:
-        print('applying coop norm!!!')
-        print(input_tensor.shape)
+        # print('applying coop norm!!!')
+        # print(input_tensor.shape)
         # TODO Convert to RGB to match CoOp
         input_tensor = input_tensor[:, [2, 1, 0], :, :]
         # TODO divide by 255 here
         normalized_tensor = coop_normalize(input_tensor/255.0)
-        print('normalized_tensor.mean()')
-        print(normalized_tensor.mean())
-        print(normalized_tensor[0,:5,:5,:5])
+        # print('normalized_tensor.mean()')
+        # print(normalized_tensor.mean())
+        # print(normalized_tensor[0,:5,:5,:5])
     
     else:
     
@@ -422,18 +422,18 @@ def extract_clip_features(images, model, backbone_type, tile_size=224, text=Fals
 
     # Process tiles through CLIP
     
-    print('patch_size')
-    print(patch_size)
-    print('num_tiles_side')
-    print(num_tiles_side)
-    print('tile_size')
-    print(tile_size)
-    print('image_size')
-    print(image_size)
-    print('B')
-    print(B)
-    print('D')
-    print(D)
+    # print('patch_size')
+    # print(patch_size)
+    # print('num_tiles_side')
+    # print(num_tiles_side)
+    # print('tile_size')
+    # print(tile_size)
+    # print('image_size')
+    # print(image_size)
+    # print('B')
+    # print(B)
+    # print('D')
+    # print(D)
     with torch.no_grad():
         for i in range(num_tiles_side):
             for j in range(num_tiles_side):
@@ -498,9 +498,9 @@ def extract_clip_features(images, model, backbone_type, tile_size=224, text=Fals
     output_features /= count_tensor.unsqueeze(-1)
     
     #print('output_features', output_features.shape, torch.mean(output_features))
-    print('output_features')
-    print(output_features.shape)
-    print(output_features[0,:5,:5,:5])    
+    # print('output_features')
+    # print(output_features.shape)
+    # print(output_features[0,:5,:5,:5])    
     
     return output_features, count_tensor
 
