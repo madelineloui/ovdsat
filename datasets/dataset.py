@@ -38,7 +38,7 @@ class BaseDataset(Dataset):
 
     def load_image(self, idx: int):
         filename = self.images[idx]['file_name']
-        print('FILENAME', filename)
+        # print('FILENAME', filename)
         path = os.path.join(self.images_dir, filename)
         image = cv2.imread(path)
         # print('debug cv2 cvtcolor')
@@ -69,7 +69,7 @@ class BoxDataset(BaseDataset):
         return labels, boxes
 
     def __getitem__(self, idx):
-        print('loading image')
+        #print('loading image')
         image, path = self.load_image(idx)
         labels, boxes = self.load_target(idx)
         
@@ -96,11 +96,11 @@ class BoxDataset(BaseDataset):
             image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1)) #/ 255.0 # TODO do not apply the transform (cv2)
             image = resize_transform(image)
             boxes = transformed['bboxes']
-            print('getitem')
-            print(image.shape)
-            print(image.mean())
-            #print(image[:5,:5,:5])
-            print()
+            # print('getitem')
+            # print(image.shape)
+            # print(image.mean())
+            # print(image[:5,:5,:5])
+            # print()
             labels = transformed['category_ids']
         else:
             image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1)) #/ 255.0 # TODO /255.0?
