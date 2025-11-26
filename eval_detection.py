@@ -12,6 +12,10 @@ from utils_dir.processing_utils import map_labels_to_prototypes
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
+import warnings
+warnings.filterwarnings("ignore", message=".*antialias parameter.*")
+
+torch.backends.cudnn.benchmark = True
 
 def prepare_model(args):
     '''
@@ -106,7 +110,7 @@ def eval_detection(args, model, val_dataloader, device):
     stats = []
     with torch.no_grad():
         for i, batch in tqdm(enumerate(val_dataloader), total=len(val_dataloader), leave=False):
-            if i > 50: # TODO debug
+            if i > 5: # TODO debug
                 break
             if args.classification != 'mask':
                 images, boxes, labels, metadata = batch
@@ -128,6 +132,7 @@ def eval_detection(args, model, val_dataloader, device):
             # print(model.classifier.get_categories())
             labels = map_labels_to_prototypes(val_dataloader.dataset.get_categories(), model.classifier.get_categories(), labels)
             #print(labels)
+            np.save('labels.npy', labels)
             images = images.float().to(device)
             labels = labels.to(device)
 
@@ -166,81 +171,89 @@ def eval_detection(args, model, val_dataloader, device):
                 stats.append((correct, pred[:, 4], pred[:, 5], targets_orig[:]))
                 
                 
-                ### Compute exact per-image AP@0.5
-                # Extract per-image stats
-                correct_img = correct[:, [0]].cpu().numpy()  # Only IoU=0.5
-                conf_img = pred[:, 4].detach().cpu().numpy()
-                pred_cls_img = pred[:, 5].detach().cpu().numpy()
-                true_cls_img = targets_orig.cpu().numpy()
-                # If there are no positive samples, skip AP computation
-                if len(true_cls_img) > 0 and len(pred_cls_img) > 0:
-                    _, _, _, _, _, ap_img, ap_class_img = ap_per_class(
-                        correct_img, conf_img, pred_cls_img, true_cls_img, names=names
-                    )
-                    image_map50 = ap_img[:, 0].mean()  # mean AP@0.5 across classes
-                else:
-                    image_map50 = 0.0
+#                 ### Compute exact per-image AP@0.5 (for viz)
+#                 # Extract per-image stats
+#                 correct_img = correct[:, [0]].cpu().numpy()  # Only IoU=0.5
+#                 conf_img = pred[:, 4].detach().cpu().numpy()
+#                 pred_cls_img = pred[:, 5].detach().cpu().numpy()
+#                 true_cls_img = targets_orig.cpu().numpy()
+#                 # If there are no positive samples, skip AP computation
+#                 if len(true_cls_img) > 0 and len(pred_cls_img) > 0:
+#                     _, _, _, _, _, ap_img, ap_class_img = ap_per_class(
+#                         correct_img, conf_img, pred_cls_img, true_cls_img, names=names
+#                     )
+#                     image_map50 = ap_img[:, 0].mean()  # mean AP@0.5 across classes
+#                 else:
+#                     image_map50 = 0.0
                 
                 
-                ### Viz for each image
-                #img_np = images[si].detach().cpu().permute(1, 2, 0).numpy()
-                img_np = images[si].detach().cpu()[[2, 1, 0], :, :].permute(1, 2, 0).numpy()
-                # Clip to 1st–99th percentile range to remove outliers
-                low, high = np.percentile(img_np, [1, 99])
-                img_np = np.clip(img_np, low, high)
-                if img_np.max() > 1:  # normalize if values are 0–255
-                    img_np = img_np / 255.0
+#                 ### Viz for each image
+#                 #img_np = images[si].detach().cpu().permute(1, 2, 0).numpy()
+#                 img_np = images[si].detach().cpu()[[2, 1, 0], :, :].permute(1, 2, 0).numpy()
+#                 # Clip to 1st–99th percentile range to remove outliers
+#                 low, high = np.percentile(img_np, [1, 99])
+#                 img_np = np.clip(img_np, low, high)
+#                 if img_np.max() > 1:  # normalize if values are 0–255
+#                     img_np = img_np / 255.0
 
-                fig, ax = plt.subplots(1, 1, figsize=(8, 8))
-                ax.imshow(img_np)
+#                 fig, ax = plt.subplots(1, 1, figsize=(8, 8))
+#                 ax.imshow(img_np)
                 
-                ### Draw ground-truth boxes (green)
-                if nl > 0:
-                    tbox_np = tbox.cpu().numpy()
-                    targets_np = targets_orig.cpu().numpy()
-                    for j, gt_box in enumerate(tbox_np):
-                        x1, y1, x2, y2 = gt_box.tolist()
-                        gt_label = int(targets_np[j])
-                        rect = patches.Rectangle(
-                            (x1, y1), x2 - x1, y2 - y1,
-                            linewidth=2, edgecolor="lime", facecolor="none"
-                        )
-                        ax.add_patch(rect)
-                        ax.text(
-                            x1, max(y1 - 5, 0),
-                            f"GT: {names[gt_label]}",
-                            color="white", fontsize=7, weight="bold",
-                            bbox=dict(facecolor="green", alpha=0.5, pad=1)
-                        )
+#                 ### Draw ground-truth boxes (green)
+#                 if nl > 0:
+#                     tbox_np = tbox.cpu().numpy()
+#                     targets_np = targets_orig.cpu().numpy()
+#                     for j, gt_box in enumerate(tbox_np):
+#                         x1, y1, x2, y2 = gt_box.tolist()
+#                         gt_label = int(targets_np[j])
+#                         rect = patches.Rectangle(
+#                             (x1, y1), x2 - x1, y2 - y1,
+#                             linewidth=2, edgecolor="lime", facecolor="none"
+#                         )
+#                         ax.add_patch(rect)
+#                         ax.text(
+#                             x1, max(y1 - 5, 0),
+#                             f"GT: {names[gt_label]}",
+#                             color="white", fontsize=7, weight="bold",
+#                             bbox=dict(facecolor="green", alpha=0.5, pad=1)
+#                         )
 
-                ### Draw predicted boxes (red)
-                if pred is not None and len(pred) > 0:
-                    pred = pred.detach().cpu()
+#                 ### Draw predicted boxes (red)
+#                 if pred is not None and len(pred) > 0:
+#                     pred = pred.detach().cpu()
 
-                    for box in pred:
-                        x1, y1, x2, y2, score, label = box.tolist()
+#                     for box in pred:
+#                         x1, y1, x2, y2, score, label = box.tolist()
 
-                        # draw rectangle
-                        rect = patches.Rectangle(
-                            (x1, y1), x2 - x1, y2 - y1,
-                            linewidth=2, edgecolor="red", facecolor="none"
-                        )
-                        ax.add_patch(rect)
+#                         # draw rectangle
+#                         rect = patches.Rectangle(
+#                             (x1, y1), x2 - x1, y2 - y1,
+#                             linewidth=2, edgecolor="red", facecolor="none"
+#                         )
+#                         ax.add_patch(rect)
 
-                        # add label and score
-                        ax.text(
-                            x1, max(y1 - 5, 0),
-                            f"{names[int(label)]}: {score:.2f}",
-                            color="yellow", fontsize=8, weight="bold",
-                            bbox=dict(facecolor="black", alpha=0.5, pad=1)
-                        )
+#                         # add label and score
+#                         ax.text(
+#                             x1, max(y1 - 5, 0),
+#                             f"{names[int(label)]}: {score:.2f}",
+#                             color="yellow", fontsize=8, weight="bold",
+#                             bbox=dict(facecolor="black", alpha=0.5, pad=1)
+#                         )
                         
-                        ax.set_title(f"mAP@0.5 = {image_map50:.3f}", color='white', fontsize=12, weight='bold', backgroundcolor='black')
+#                         # ax.set_title(f"mAP@0.5 = {image_map50:.3f}", color='white', fontsize=12, weight='bold', backgroundcolor='black')
+#                         filename = os.path.basename(metadata["impath"][si])
+#                         ax.set_title(
+#                             f"{filename}\n mAP@0.5 = {image_map50:.3f}",
+#                             color='white',
+#                             fontsize=12,
+#                             weight='bold',
+#                             backgroundcolor='black'
+#                         )
 
-                # Save instead of plt.show()
-                save_path = os.path.join(viz_dir, f"batch{i}_img{si}.png")
-                plt.savefig(save_path, bbox_inches="tight", dpi=150)
-                plt.close(fig)  # free memory
+#                 # Save instead of plt.show()
+#                 save_path = os.path.join(viz_dir, f"batch{i}_img{si}.png")
+#                 plt.savefig(save_path, bbox_inches="tight", dpi=150)
+#                 plt.close(fig)  # free memory
                 
     # Use original categories
     names = model.classifier.get_categories()
@@ -315,8 +328,9 @@ def main(args):
     # print()
 
     # Initialize dataloader
+    #print("Before dataloader init")
     _, val_dataloader = init_dataloaders(args)
-
+    #print("After dataloader init, dataset length =", len(val_dataloader.dataset))
 
     # Load model
     model, device = prepare_model(args)

@@ -39,7 +39,7 @@ PATH_CKPT_CLIP14_CAP2 = 'weights/vlm4rs/cap2_e36.pth'
 PATH_CKPT_CLIP14_GPT0_512_EPOCH50 = 'weights/vlm4rs/gpt_single_512_e50.pth'
 PATH_CKPT_CLIP14_GPTe_512_EPOCH50 = 'weights/vlm4rs/gpt_ensemble_512_e50.pth'
 PATH_CKPT_CLIP14_GPT0_1024_EPOCH50 = 'weights/vlm4rs/gpt_single_1024_e50.pth'
-PATH_CKPT_CLIP14_GPTe_1024_EPOCH50 = '/home/gridsan/manderson/train-CLIP/run/fmow/fmow-clip-50.pth' #'/home/gridsan/manderson/train-CLIP/run/gpt_e-1024/fmow-clip.pth' #'weights/vlm4rs/gpt_ensemble_1024_e50.pth'
+PATH_CKPT_CLIP14_GPTe_1024_EPOCH50 = 'weights/vlm4rs/gpt_ensemble_1024_e50.pth' #'/home/gridsan/manderson/train-CLIP/run/fmow/fmow-clip-50.pth' #'/home/gridsan/manderson/train-CLIP/run/gpt_e-1024/fmow-clip.pth' #'weights/vlm4rs/gpt_ensemble_1024_e50.pth'
 PATH_CKPT_CUSTOMCLIP14_GPTe_1024_EPOCH50 = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/customclip.pth'
 PATH_CKPT_OPENCLIP14_GPTe_1024_EPOCH50 = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-fmow-50_v2.pt'
 PATH_CKPT_OPENCLIP14_GPTe_1024_EPOCH_early = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-fmow-20_s2.pt'
@@ -47,6 +47,7 @@ PATH_CKPT_CLIP14_TEST = '/home/gridsan/manderson/train-CLIP/run/fmow/fmow-test-4
 PATH_CKPT_CLIP14_FMOW = '/home/gridsan/manderson/train-CLIP/run/fmow/fmow-test-4.pth'
 PATH_CKPT_OPENCLIP14_FMOW = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-fmow-4.pt'
 PATH_CKPT_LONGCLIP14_FMOW = '/home/gridsan/manderson/ovdsat/Long-CLIP/checkpoints/005-07--05_28_20_longclip.pt'
+PATH_CKPT_OPENCLIP14_REMOTE_FMOW = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-remote-fmow.pt'
 
 
 def load_clip_to_cpu():
@@ -213,6 +214,13 @@ def load_backbone(backbone_type):
         model = model.visual
         #model.output_tokens = True
         print(f'Using checkpoint {PATH_CKPT_LONGCLIP14_FMOW}')
+    elif backbone_type == 'openclip-14-remote-fmow':
+        model, _, _ = open_clip.create_model_and_transforms('ViT-L-14')
+        ckpt = torch.load(PATH_CKPT_OPENCLIP14_REMOTE_FMOW, map_location="cpu")
+        model.load_state_dict(ckpt)
+        model = model.visual
+        model.output_tokens = True
+        print(f'Using checkpoint {PATH_CKPT_OPENCLIP14_REMOTE_FMOW}')
     else:
         print(f'Warning: {backbone_type} not in list!')
 
@@ -312,6 +320,12 @@ def load_backbone_and_tokenizer(backbone_type):
         model.load_state_dict(ckpt)
         tokenizer = open_clip.get_tokenizer('ViT-L-14')
         print(f'Using checkpoint {PATH_CKPT_OPENCLIP14_FMOW}')
+    elif backbone_type == 'openclip-14-remote-fmow':
+        model, _, _ = open_clip.create_model_and_transforms('ViT-L-14')
+        ckpt = torch.load(PATH_CKPT_OPENCLIP14_REMOTE_FMOW, map_location="cpu")
+        model.load_state_dict(ckpt)
+        tokenizer = open_clip.get_tokenizer('ViT-L-14')
+        print(f'Using checkpoint {PATH_CKPT_OPENCLIP14_REMOTE_FMOW}')
     else:
         print(f'Warning: {backbone_type} not in list!')
 

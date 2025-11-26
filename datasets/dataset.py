@@ -69,59 +69,63 @@ class BoxDataset(BaseDataset):
         return labels, boxes
 
     def __getitem__(self, idx):
-        #print('loading image')
-        image, path = self.load_image(idx)
-        labels, boxes = self.load_target(idx)
-        
-        h, w, _ = image.shape
-        #_ , w, h = image.shape
-        metadata = {
-            "width": w,
-            "height": h,
-            "impath": path,
-        }
+        try:
+            #print('loading image')
+            image, path = self.load_image(idx)
+            labels, boxes = self.load_target(idx)
 
-        # Apply augmentations        
-        if self.augmentations:
-            # print('in aug')
-            # print(self.augmentations)
-            # print()
-            transformed = self.augmentations(
-                image=image, 
-                bboxes=boxes, 
-                category_ids=labels
-            )
-            #image = torch.as_tensor(transformed['image'].astype("float32").transpose(2, 0, 1)) #/ 255.0 # TODO /255.0?
-            resize_transform = T.Resize((602, 602))
-            image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1)) #/ 255.0 # TODO do not apply the transform (cv2)
-            image = resize_transform(image)
-            boxes = transformed['bboxes']
-            # print('getitem')
-            # print(image.shape)
-            # print(image.mean())
-            # print(image[:5,:5,:5])
-            # print()
-            labels = transformed['category_ids']
-        else:
-            image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1)) #/ 255.0 # TODO /255.0?
+            h, w, _ = image.shape
+            #_ , w, h = image.shape
+            metadata = {
+                "width": w,
+                "height": h,
+                "impath": path,
+            }
 
-        # Convert lists to numpy arrays before creating tensors
-        boxes = np.array(boxes)
-        labels = np.array(labels)
+            # Apply augmentations        
+            if self.augmentations:
+                # print('in aug')
+                # print(self.augmentations)
+                # print()
+                transformed = self.augmentations(
+                    image=image, 
+                    bboxes=boxes, 
+                    category_ids=labels
+                )
+                #image = torch.as_tensor(transformed['image'].astype("float32").transpose(2, 0, 1)) #/ 255.0 # TODO /255.0?
+                resize_transform = T.Resize((602, 602))
+                image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1)) #/ 255.0 # TODO do not apply the transform (cv2)
+                image = resize_transform(image)
+                boxes = transformed['bboxes']
+                # print('getitem')
+                # print(image.shape)
+                # print(image.mean())
+                # print(image[:5,:5,:5])
+                # print()
+                labels = transformed['category_ids']
+            else:
+                image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1)) #/ 255.0 # TODO /255.0?
 
-        # Pad bounding boxes and labels to a fixed size based on the number of annotations
-        num_boxes = len(boxes)
-        padded_boxes = torch.tensor(boxes).float()
-        padded_labels = torch.tensor(labels).float()
+            # Convert lists to numpy arrays before creating tensors
+            boxes = np.array(boxes)
+            labels = np.array(labels)
 
-        # Pad to the maximum number of boxes
-        if num_boxes < self.max_boxes:
-            pad_boxes = torch.zeros((self.max_boxes - num_boxes, 4))
-            pad_labels = torch.full((self.max_boxes - num_boxes,), -1)
-            padded_boxes = torch.cat([padded_boxes, pad_boxes], dim=0)
-            padded_labels = torch.cat([padded_labels, pad_labels], dim=0)
-        
-        return image, padded_boxes, padded_labels, metadata
+            # Pad bounding boxes and labels to a fixed size based on the number of annotations
+            num_boxes = len(boxes)
+            padded_boxes = torch.tensor(boxes).float()
+            padded_labels = torch.tensor(labels).float()
+
+            # Pad to the maximum number of boxes
+            if num_boxes < self.max_boxes:
+                pad_boxes = torch.zeros((self.max_boxes - num_boxes, 4))
+                pad_labels = torch.full((self.max_boxes - num_boxes,), -1)
+                padded_boxes = torch.cat([padded_boxes, pad_boxes], dim=0)
+                padded_labels = torch.cat([padded_labels, pad_labels], dim=0)
+
+            return image, padded_boxes, padded_labels, metadata
+        except Exception as e:
+            print(f"Skipping {self.paths[idx]}: {e}")
+            return None
 
 class OBBDataset(BaseDataset):
 

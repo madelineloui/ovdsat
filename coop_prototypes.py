@@ -136,22 +136,25 @@ def build_coop_prototypes(args, model, device):
     
     prefix = context['state_dict']['token_prefix']
     ctx = context['state_dict']['ctx']
-    #suffix = context['state_dict']['token_suffix']
+    suffix = context['state_dict']['token_suffix']
     
  
-    # New suffix with correct classes
-    clip_model = load_clip_to_cpu()
-    prompt_prefix = " ".join(["X"] * n_ctx)
-    prompts = [prompt_prefix + " " + NEW_CNAMES[name] + "." for name in classes]
-    tokenized_prompts = torch.cat([clip.tokenize(p) for p in prompts])
-    with torch.no_grad():
-        embedding = clip_model.token_embedding(tokenized_prompts).type(clip_model.dtype)
-    suffix = embedding[:, 1 + n_ctx :, :]
-        
+#     # New suffix with correct classes
+#     clip_model = load_clip_to_cpu()
+#     #prompt_prefix = " ".join(["X"] * n_ctx)
+#     prompt_prefix = "a satellite image of"
+#     prompts = [prompt_prefix + " " + NEW_CNAMES[name] + "." for name in classes]
+#     tokenized_prompts = torch.cat([clip.tokenize(p) for p in prompts])
+#     with torch.no_grad():
+#         embedding = clip_model.token_embedding(tokenized_prompts).type(clip_model.dtype)
+#     suffix = embedding[:, 1 + n_ctx :, :]    
           
+#     print('DEBUG new names')
+#     print([NEW_CNAMES[name] for name in classes])
+#     name_lens = [len(tokenizer.encode(NEW_CNAMES[name])) for name in classes]
+#     print('name_lens')
+#     print(name_lens)
     
-    print('DEBUG new names')
-    print([NEW_CNAMES[name] for name in classes])
     name_lens = [len(tokenizer.encode(NEW_CNAMES[name])) for name in classes]
     print('name_lens')
     print(name_lens)
@@ -181,6 +184,31 @@ def build_coop_prototypes(args, model, device):
         )
         prompts.append(prompt)
     prompts = torch.cat(prompts, dim=0)
+    
+    
+    # half_n_ctx = self.n_ctx // 2
+    #         prompts = []
+    #         for i in range(self.n_cls):
+    #             name_len = self.name_lens[i]
+    #             prefix_i = prefix[i : i + 1, :, :]
+    #             class_i = suffix[i : i + 1, :name_len, :]
+    #             suffix_i = suffix[i : i + 1, name_len:, :]
+    #             ctx_i_half1 = ctx[i : i + 1, :half_n_ctx, :]
+    #             ctx_i_half2 = ctx[i : i + 1, half_n_ctx:, :]
+    #             prompt = torch.cat(
+    #                 [
+    #                     prefix_i,     # (1, 1, dim)
+    #                     ctx_i_half1,  # (1, n_ctx//2, dim)
+    #                     class_i,      # (1, name_len, dim)
+    #                     ctx_i_half2,  # (1, n_ctx//2, dim)
+    #                     suffix_i,     # (1, *, dim)
+    #                 ],
+    #                 dim=1,
+    #             )
+    #             prompts.append(prompt)
+    #         prompts = torch.cat(prompts, dim=0)
+    
+    
     print('DEBUG')
     save_name = f'prompts_{args.backbone_type}.pt'
     torch.save(prompts, os.path.join(args.save_dir, save_name))
@@ -189,11 +217,11 @@ def build_coop_prototypes(args, model, device):
     print('prompts shape:', prompts.shape)
     #prompts = prompts.to(device=next(model.parameters()).device, dtype=next(model.parameters()).dtype)
     
-    prompt_prefix = " ".join(["X"] * n_ctx)
+    #prompt_prefix = " ".join(["X"] * n_ctx)
+    clip_model = load_clip_to_cpu()
+    prompt_prefix = "a satellite image of"
     prompts_for_token = [prompt_prefix + " " + NEW_CNAMES[name] + "." for name in classes]
     tokenized_prompts = torch.cat([clip.tokenize(p) for p in prompts_for_token])
-    
-    clip_model = load_clip_to_cpu()
     text_encoder = TextEncoder(clip_model)
     class_feats = text_encoder(prompts, tokenized_prompts).detach().numpy()
     
