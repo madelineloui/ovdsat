@@ -1,22 +1,14 @@
-# Exploring Robust Features for Few-Shot Object Detection in Satellite Imagery
+# Open-Vocabulary Detection for Satellite Imagery (OVDSAT)
 
+We build our code from:
+*Exploring Robust Features for Few-Shot Object Detection in Satellite Imagery*
 [Xavier Bou](https://xavibou.github.io/), [Gabriele Facciolo](http://gfacciol.github.io/), [Rafael Grompone](https://scholar.google.fr/citations?user=GLovf4UAAAAJ&hl=en), [Jean-Michel Morel](https://sites.google.com/site/jeanmichelmorelcmlaenscachan/), [Thibaud Ehret](https://tehret.github.io)
-
-Centre Borelli, ENS Paris-Saclay
-
----
 
 [![arXiv](https://img.shields.io/badge/paper-arxiv-brightgreen)]()
 [![Google Drive](https://img.shields.io/badge/files-Google_Drive-blueviolet)](https://drive.google.com/drive/folders/1g3JhJivPlmpCfggAAJoiZPJDOIBeJR5J?usp=sharing)
 [![Project](https://img.shields.io/badge/project%20web-github.io-red)]()
 
-This repository is the official implementation of the paper [Exploring Robust Features for Few-Shot Object Detection in Satellite Imagery](https://arxiv.org/abs/2403.05381).
-
-🎉 **Our Paper Has Been Accepted to the EarthVision Workshop at CVPR24!** 🌍
-
-The goal of this paper is to perform object detection in satellite imagery with only a few examples, thus enabling users to specify any object class with minimal annotation. To this end, we explore recent methods and ideas from open-vocabulary detection for the remote sensing domain. We develop a few-shot object detector based on a traditional two-stage architecture, where the classification block is replaced by a prototype-based classifier. A large-scale pre-trained model is used to build class-reference embeddings or prototypes, which are compared to region proposal contents for label prediction. In addition, we propose to fine-tune prototypes on available training images to boost performance and learn differences between similar classes, such as aircraft types. We perform extensive evaluations on two remote sensing datasets containing challenging and rare objects. Moreover, we study the performance of both visual and image-text features, namely DINOv2 and CLIP, including two CLIP models specifically tailored for remote sensing applications. Results indicate that visual features are largely superior to vision-language models, as the latter lack the necessary domain-specific vocabulary. Lastly, the developed detector outperforms fully supervised and few-shot methods evaluated on the SIMD and DIOR datasets, despite minimal training parameters.
-
-![Alt text](./assets/teaser_plot_v3.png)
+<!-- ![Alt text](./assets/teaser_plot_v3.png) -->
 
 ## Contents
 
@@ -101,15 +93,23 @@ Evaluate the learned prototypes on unseen data:
 ```Shell
 bash scripts/eval_detection-loop-dior.sh
 bash scripts/eval_detection-loop-simd.sh
-bash scripts/eval_detection-loop-simd-sc.sh
 ```
-`sc` indicates super classes.
 
 ### Backbones
 Add any additional or custom backbones to `utils_dir/backbones_utils.py`, with path to local pretrained weights.
 
 ### Citation
 If you found our work useful, please cite it as follows:
+
+```bibtex
+@article{anderson2025measuring,
+  title={Measuring and Mitigating Hallucinations in Vision-Language Dataset Generation for Remote Sensing},
+  author={Anderson, Madeline and Cha, Miriam and Freeman, William T and Perron, J Taylor and Maidel, Nathaniel and Cahoy, Kerri},
+  journal={arXiv preprint arXiv:2501.14905},
+  year={2025}
+}
+```
+
 ```bibtex
 @article{Bou:2024,
   title={Exploring Robust Features for Few-Shot Object Detection in Satellite Imagery},
