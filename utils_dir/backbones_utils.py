@@ -15,7 +15,6 @@ import sys
 import os
 model_path = os.path.join("/home/gridsan/manderson/ovdsat/Long-CLIP/model")
 sys.path.append(os.path.abspath(model_path))
-#import longclip
 
 # Import clip used in CoOp
 from CoOp.clip import clip
@@ -39,7 +38,7 @@ PATH_CKPT_CLIP14_CAP2 = 'weights/vlm4rs/cap2_e36.pth'
 PATH_CKPT_CLIP14_GPT0_512_EPOCH50 = 'weights/vlm4rs/gpt_single_512_e50.pth'
 PATH_CKPT_CLIP14_GPTe_512_EPOCH50 = 'weights/vlm4rs/gpt_ensemble_512_e50.pth'
 PATH_CKPT_CLIP14_GPT0_1024_EPOCH50 = 'weights/vlm4rs/gpt_single_1024_e50.pth'
-PATH_CKPT_CLIP14_GPTe_1024_EPOCH50 = 'weights/vlm4rs/gpt_ensemble_1024_e50.pth' #'/home/gridsan/manderson/train-CLIP/run/fmow/fmow-clip-50.pth' #'/home/gridsan/manderson/train-CLIP/run/gpt_e-1024/fmow-clip.pth' #'weights/vlm4rs/gpt_ensemble_1024_e50.pth'
+PATH_CKPT_CLIP14_GPTe_1024_EPOCH50 = 'weights/vlm4rs/gpt_ensemble_1024_e50.pth'
 PATH_CKPT_CUSTOMCLIP14_GPTe_1024_EPOCH50 = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/customclip.pth'
 PATH_CKPT_OPENCLIP14_GPTe_1024_EPOCH50 = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-fmow-50_v2.pt'
 PATH_CKPT_OPENCLIP14_GPTe_1024_EPOCH_early = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-fmow-20_s2.pt'
@@ -346,15 +345,10 @@ def prepare_image_for_backbone(input_tensor, backbone_type, text=False):
         input_tensor = input_tensor[:, :3, :, :]  # Discard the alpha channel (4th channel)
         
     if text:
-        # print('applying coop norm!!!')
-        # print(input_tensor.shape)
         # TODO Convert to RGB to match CoOp
         input_tensor = input_tensor[:, [2, 1, 0], :, :]
         # TODO divide by 255 here
         normalized_tensor = coop_normalize(input_tensor/255.0)
-        # print('normalized_tensor.mean()')
-        # print(normalized_tensor.mean())
-        # print(normalized_tensor[0,:5,:5,:5])
     
     else:
     
@@ -431,23 +425,7 @@ def extract_clip_features(images, model, backbone_type, tile_size=224, text=Fals
         model = load_clip_to_cpu()
         model = model.to(images.device)
         model.float()
-        # print('DEBUG')
-        # print('load_clip_to_cpu()')
 
-    # Process tiles through CLIP
-    
-    # print('patch_size')
-    # print(patch_size)
-    # print('num_tiles_side')
-    # print(num_tiles_side)
-    # print('tile_size')
-    # print(tile_size)
-    # print('image_size')
-    # print(image_size)
-    # print('B')
-    # print(B)
-    # print('D')
-    # print(D)
     with torch.no_grad():
         for i in range(num_tiles_side):
             for j in range(num_tiles_side):
@@ -468,18 +446,8 @@ def extract_clip_features(images, model, backbone_type, tile_size=224, text=Fals
                 tile = images[:, :, start_i:end_i, start_j:end_j]
                 
                 if text:
-                    #image_features = model.encode_image(tile).unsqueeze(1)
-                    # print('DEBUG: original image feature shape')
-                    # print(image_features.shape)
-                    #model = model.to(dtype=tile.dtype)
-                    #print('clip features extract')
-                    #print(model.visual.conv1.weight[0, 0, :5, :5])
                     image_features = model.visual(tile).unsqueeze(1)
-                    # print('DEBUG: new image feature shape')
-                    # print(image_features.shape)
-                    #print(torch.mean(image_features))
                 else:
-    
                     # Extract CLIP's features before token pooling
                     #if backbone_type == 'clip-32' or backbone_type == 'clip-14':
                     if 'georsclip' in backbone_type or 'remoteclip' in backbone_type or 'openclip' in backbone_type or 'customclip' in backbone_type:
@@ -491,18 +459,10 @@ def extract_clip_features(images, model, backbone_type, tile_size=224, text=Fals
                         image_features = model(tile).last_hidden_state[:, 1:]
                     else:
                         image_features = model(tile)[-1]
-                    
-                    
-                #print(f'\nFEATURE SHAPE: {image_features.shape}\n') #- TODO for debugging
 
                 _, K, D = image_features.shape
                 p_w = p_h = int(K**0.5)
                 image_features = image_features.reshape(B, p_h, p_w, -1)  # Reshape to 2D
-                
-                # print('image_features.shape')
-                # print(image_features.shape)
-                # print('output_features.shape')
-                # print(output_features.shape)
 
                 # Add features to their location in the original image and track counts per location
                 output_features[:, start_i // patch_size:end_i // patch_size, start_j // patch_size:end_j // patch_size] += image_features
@@ -510,11 +470,6 @@ def extract_clip_features(images, model, backbone_type, tile_size=224, text=Fals
     
     # Average the overlapping patches
     output_features /= count_tensor.unsqueeze(-1)
-    
-    #print('output_features', output_features.shape, torch.mean(output_features))
-    # print('output_features')
-    # print(output_features.shape)
-    # print(output_features[0,:5,:5,:5])    
     
     return output_features, count_tensor
 
@@ -534,14 +489,6 @@ def extract_backbone_features(images, model, backbone_type, scale_factor=1, text
         with torch.no_grad():
             feats = model.forward_features(images)['x_prenorm'][:, 1:]
     elif 'clip' in backbone_type:
-        # if text:
-        #     model, _ = load_backbone_and_tokenizer(backbone_type)
-        #     model.to(images.device)
-        #     feats, _ = extract_clip_features(images, model, backbone_type, text=text)
-        #     feats = feats.view(feats.shape[0], -1, feats.shape[-1])
-        # else:
-        #     feats, _ = extract_clip_features(images, model, backbone_type, text=text)
-        #     feats = feats.view(feats.shape[0], -1, feats.shape[-1])
         feats, _ = extract_clip_features(images, model, backbone_type, text=text)
         feats = feats.view(feats.shape[0], -1, feats.shape[-1])
     else:
