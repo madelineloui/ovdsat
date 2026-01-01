@@ -274,6 +274,8 @@ def main(args):
         args (argparse.Namespace): Input arguments
     '''
 
+    
+    
     # Convert COCO annotations to segmentation masks
     init_data_path = os.path.join('data', 'init_data', args.save_dir.split('/')[-1])
     print(args.annotations_file)

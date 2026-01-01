@@ -27,6 +27,28 @@ from argparse import ArgumentParser
 from utils_dir.backbones_utils import load_backbone_and_tokenizer, extract_backbone_features, get_backbone_params
 from utils_dir.coco_to_seg import coco_to_seg
 
+NEW_CNAMES = {
+    "airplane": "airplane",
+    "airport": "airport",
+    "baseballfield": "baseball field",
+    "basketballcourt": "basketball court",
+    "bridge": "bridge",
+    "chimney": "chimney",
+    "dam": "dam",
+    "Expressway-Service-area": "expressway service area",
+    "Expressway-toll-station": "expressway toll station",
+    "golffield": "golf field",
+    "groundtrackfield": "ground track field",
+    "harbor": "harbor",
+    "overpass": "overpass",
+    "ship": "ship",
+    "stadium": "stadium",
+    "storagetank": "storage tank",
+    "tenniscourt": "tennis court",
+    "trainstation": "train station",
+    "vehicle": "vehicle",
+    "windmill": "windmill",
+}
 
 def build_background_text_prototypes(args, tokenizer, model, device):
     '''
@@ -48,9 +70,6 @@ def build_background_text_prototypes(args, tokenizer, model, device):
     elif 'customclip' in args.backbone_type:
         tokenized_bg_prompts = tokenizer(bg_prompts, return_tensors="pt", padding=True, truncation=True).to(device)
         bg_text_features = model.encode_text(tokenized_bg_prompts).to(device)
-        #print(bg_text_features.shape)
-        #print(torch.mean(bg_text_features))
-        #bg_text_features = F.normalize(model.encode_text(tokenized_bg_prompts), dim=1).to(device)
     else:
         tokenized_bg_prompts = tokenizer(bg_prompts, return_tensors="pt", padding=True, truncation=True).to(device)
         bg_text_features = model.get_text_features(**tokenized_bg_prompts).to(device)
@@ -86,7 +105,7 @@ def build_text_prototypes(args, tokenizer, model, device):
     print(f'{len(classes)} class labels found')
         
     # Turn labels into prompts "a satellite image of a {label}"
-    prompts = [f'a satellite image of a {c}' for c in classes]
+    prompts = [f'a satellite image of a {NEW_CNAMES[c]}' for c in classes]
     
     # Tokenize and extract text features
     if any(b in args.backbone_type for b in ('openclip', 'remoteclip', 'georsclip')):
@@ -96,15 +115,7 @@ def build_text_prototypes(args, tokenizer, model, device):
         print('text_features', text_features.shape)
     elif 'customclip' in args.backbone_type:
         tokenized_prompts = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True).to(device)
-        # print('checking tokens')
-        # print(tokenized_prompts['input_ids'].shape)
-        # print(tokenized_prompts['input_ids'][0])
-        # print(tokenized_prompts['attention_mask'].shape)
-        # print(tokenized_prompts['attention_mask'][0])
         text_features = model.encode_text(tokenized_prompts).to(device)
-        #print(text_features.shape)
-        #print(torch.mean(text_features))
-        #text_features = F.normalize(model.encode_text(tokenized_prompts), dim=1).to(device)
     else:
         tokenized_prompts = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True).to(device)
         text_features = model.get_text_features(**tokenized_prompts).to(device)
@@ -167,17 +178,9 @@ def main(args):
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    #parser.add_argument('--data_dir', type=str, default='data/simd_subset_10')
     parser.add_argument('--save_dir', type=str, default='run/text_prototypes/boxes/dior')
-    #parser.add_argument('--annotations_file', type=str, default='/mnt/ddisk/boux/code/data/simd/train_coco_subset_N10.json')
     parser.add_argument('--backbone_type', type=str, default='clip-14')
     parser.add_argument('--labels_dir', type=str, default='/home/gridsan/manderson/ovdsat/data/text/dior_labels.txt')
-    #parser.add_argument('--target_size', nargs=2, type=int, metavar=('width', 'height'), default=(602, 602))
-    #parser.add_argument('--window_size', type=int, default=224)
-    #parser.add_argument('--scale_factor', type=int, default=1)
-    #parser.add_argument('--num_b', type=int, default=10, help='Number of background samples to extract per image')
-    #parser.add_argument('--k', type=int, default=200, help='Number of background prototypes (clusters for k-means)')
-    #parser.add_argument('--store_bg_prototypes', action='store_true', default=False)
     parser.add_argument('--bg_prompts', type=str, default=None)
     args = parser.parse_args()
 

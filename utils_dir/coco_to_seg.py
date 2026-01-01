@@ -14,6 +14,8 @@ def coco_to_seg(annotation_file, image_directory, save_path):
         image_directory (str): Path to the directory containing the images.
         save_path (str): Path to the directory where the segmentation masks will be saved.
     '''
+    print('[DEBUG] Entered coco_to_seg()')
+    
     # Create the output directory if it doesn't exist
     if not os.path.exists(save_path):
         os.makedirs(save_path)

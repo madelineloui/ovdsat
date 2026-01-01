@@ -46,7 +46,30 @@ NEW_CNAMES = {
 }
 
 
+# class TextEncoder(nn.Module):
+#     def __init__(self, clip_model):
+#         super().__init__()
+#         self.transformer = clip_model.transformer
+#         self.positional_embedding = clip_model.positional_embedding
+#         self.ln_final = clip_model.ln_final
+#         self.text_projection = clip_model.text_projection
+#         self.dtype = clip_model.dtype
+        
+#         #print('TextEncoder dtype:', self.dtype)
 
+#     def forward(self, prompts, tokenized_prompts):
+#         x = prompts + self.positional_embedding.type(self.dtype)
+#         x = x.permute(1, 0, 2)  # NLD -> LND
+#         x = self.transformer(x)
+#         x = x.permute(1, 0, 2)  # LND -> NLD
+#         x = self.ln_final(x).type(self.dtype)
+
+#         # x.shape = [batch_size, n_ctx, transformer.width]
+#         # take features from the eot embedding (eot_token is the highest number in each sequence)
+#         x = x[torch.arange(x.shape[0]), tokenized_prompts.argmax(dim=-1)] @ self.text_projection
+
+#         return x
+    
 class TextEncoder(nn.Module):
     def __init__(self, clip_model):
         super().__init__()
@@ -55,8 +78,6 @@ class TextEncoder(nn.Module):
         self.ln_final = clip_model.ln_final
         self.text_projection = clip_model.text_projection
         self.dtype = clip_model.dtype
-        
-        #print('TextEncoder dtype:', self.dtype)
 
     def forward(self, prompts, tokenized_prompts):
         x = prompts + self.positional_embedding.type(self.dtype)
@@ -88,13 +109,13 @@ def load_clip_to_cpu():
     model = clip.build_model(state_dict or model.state_dict())
     
     # TODO: hardcoded to use remoteclip
-    #state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-fmow-4.pt', map_location="cpu")
     state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/RemoteCLIP-ViT-L-14.pt', map_location="cpu")
     #state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/RS5M_ViT-L-14.pt', map_location="cpu")
     model = clip.build_model(state_dict)
                              
-    #print('load_clip_to_cpu model dtype:', model.dtype)
-    model.float()
+    print('DEBUG load_clip_to_cpu model dtype:', model.dtype)
+    #model.float()
+    print('DEBUG load_clip_to_cpu model dtype:', model.dtype)
         
     return model
 
@@ -110,7 +131,8 @@ def build_coop_prototypes(args, model, device):
         device (str): Device to run the model on
     '''
     
-    # note this is only working on cpu currently
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
         
     # Read args.labels_dir
     with open(args.labels_dir, "r") as f:
@@ -137,23 +159,6 @@ def build_coop_prototypes(args, model, device):
     prefix = context['state_dict']['token_prefix']
     ctx = context['state_dict']['ctx']
     suffix = context['state_dict']['token_suffix']
-    
- 
-#     # New suffix with correct classes
-#     clip_model = load_clip_to_cpu()
-#     #prompt_prefix = " ".join(["X"] * n_ctx)
-#     prompt_prefix = "a satellite image of"
-#     prompts = [prompt_prefix + " " + NEW_CNAMES[name] + "." for name in classes]
-#     tokenized_prompts = torch.cat([clip.tokenize(p) for p in prompts])
-#     with torch.no_grad():
-#         embedding = clip_model.token_embedding(tokenized_prompts).type(clip_model.dtype)
-#     suffix = embedding[:, 1 + n_ctx :, :]    
-          
-#     print('DEBUG new names')
-#     print([NEW_CNAMES[name] for name in classes])
-#     name_lens = [len(tokenizer.encode(NEW_CNAMES[name])) for name in classes]
-#     print('name_lens')
-#     print(name_lens)
     
     name_lens = [len(tokenizer.encode(NEW_CNAMES[name])) for name in classes]
     print('name_lens')
@@ -185,30 +190,6 @@ def build_coop_prototypes(args, model, device):
         prompts.append(prompt)
     prompts = torch.cat(prompts, dim=0)
     
-    
-    # half_n_ctx = self.n_ctx // 2
-    #         prompts = []
-    #         for i in range(self.n_cls):
-    #             name_len = self.name_lens[i]
-    #             prefix_i = prefix[i : i + 1, :, :]
-    #             class_i = suffix[i : i + 1, :name_len, :]
-    #             suffix_i = suffix[i : i + 1, name_len:, :]
-    #             ctx_i_half1 = ctx[i : i + 1, :half_n_ctx, :]
-    #             ctx_i_half2 = ctx[i : i + 1, half_n_ctx:, :]
-    #             prompt = torch.cat(
-    #                 [
-    #                     prefix_i,     # (1, 1, dim)
-    #                     ctx_i_half1,  # (1, n_ctx//2, dim)
-    #                     class_i,      # (1, name_len, dim)
-    #                     ctx_i_half2,  # (1, n_ctx//2, dim)
-    #                     suffix_i,     # (1, *, dim)
-    #                 ],
-    #                 dim=1,
-    #             )
-    #             prompts.append(prompt)
-    #         prompts = torch.cat(prompts, dim=0)
-    
-    
     print('DEBUG')
     save_name = f'prompts_{args.backbone_type}.pt'
     torch.save(prompts, os.path.join(args.save_dir, save_name))
@@ -222,8 +203,13 @@ def build_coop_prototypes(args, model, device):
     prompt_prefix = "a satellite image of"
     prompts_for_token = [prompt_prefix + " " + NEW_CNAMES[name] + "." for name in classes]
     tokenized_prompts = torch.cat([clip.tokenize(p) for p in prompts_for_token])
-    text_encoder = TextEncoder(clip_model)
-    class_feats = text_encoder(prompts, tokenized_prompts).detach().numpy()
+    # DEBUG
+    save_name = f'tokenized_prompts_{args.backbone_type}.pt'
+    torch.save(tokenized_prompts, os.path.join(args.save_dir, save_name))
+    
+    with torch.no_grad():
+        text_encoder = TextEncoder(clip_model).to(device)
+        class_feats = text_encoder(prompts.to(device), tokenized_prompts.to(device))#.detach().numpy()
     
     #bg_feats = torch.from_numpy(text_feats[bg_index:bg_index+1])
     #class_feats = torch.from_numpy(np.delete(text_feats, bg_index, axis=0))
@@ -232,7 +218,7 @@ def build_coop_prototypes(args, model, device):
     #print(f'Background feats shape: {bg_feats.shape}')
 
     class_dict = {
-        'prototypes': torch.from_numpy(class_feats).cpu(), #.cpu(),
+        'prototypes': class_feats.cpu(), #.cpu(),
         'label_names': class_names
     }
     

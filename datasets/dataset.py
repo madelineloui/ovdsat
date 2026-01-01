@@ -38,11 +38,14 @@ class BaseDataset(Dataset):
 
     def load_image(self, idx: int):
         filename = self.images[idx]['file_name']
-        # print('FILENAME', filename)
+        #print('FILENAME', filename)
         path = os.path.join(self.images_dir, filename)
         image = cv2.imread(path)
+        #print(image.shape)
+        
         # print('debug cv2 cvtcolor')
         #image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) # TODO convert to RGB to match CoOp
+        
         # img = Image.open(path).convert("RGB") # TODO try pil?
         # to_tensor = T.ToTensor()
         # img = to_tensor(img)
@@ -84,25 +87,30 @@ class BoxDataset(BaseDataset):
 
             # Apply augmentations        
             if self.augmentations:
-                # print('in aug')
-                # print(self.augmentations)
-                # print()
+                #print('in aug')
+                #print(self.augmentations)
+                #print()
                 transformed = self.augmentations(
                     image=image, 
                     bboxes=boxes, 
                     category_ids=labels
                 )
-                #image = torch.as_tensor(transformed['image'].astype("float32").transpose(2, 0, 1)) #/ 255.0 # TODO /255.0?
-                resize_transform = T.Resize((602, 602))
-                image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1)) #/ 255.0 # TODO do not apply the transform (cv2)
-                image = resize_transform(image)
+                image = torch.as_tensor(transformed['image'].astype("float32").transpose(2, 0, 1)) #/ 255.0 # TODO /255.0? remove for now?
+                
+                # # TODO override the image transform?
+                # image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1)) 
+                # resize_transform = T.Resize((602, 602))
+                # image = resize_transform(image)
+
                 boxes = transformed['bboxes']
-                # print('getitem')
+                labels = transformed['category_ids']
+                
+                #print('getitem')
                 # print(image.shape)
                 # print(image.mean())
+                # print(image.std())
                 # print(image[:5,:5,:5])
                 # print()
-                labels = transformed['category_ids']
             else:
                 image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1)) #/ 255.0 # TODO /255.0?
 

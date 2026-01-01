@@ -2,6 +2,7 @@ import torch
 import albumentations as A
 from torch.utils.data import DataLoader
 from datasets.dataset import BoxDataset, OBBDataset
+import cv2
 
 
 def get_base_new_classes(dataset):
@@ -62,10 +63,13 @@ def init_dataloaders(args):
         train_dataloader = None
 
     if val_annotations_file is not None:
+        
         val_augmentations = A.Compose([
             A.Resize(h, w),
         ], bbox_params=A.BboxParams(format='coco', label_fields=['category_ids']))
 
+        #print('DEBUG in datasets __init__.py init_dataloaders, val_augmentations')
+        #print(val_augmentations)
         val_dataset = dataClass(
             args.val_root_dir,
             args.val_annotations_file,

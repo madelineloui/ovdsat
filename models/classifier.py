@@ -98,21 +98,22 @@ class OVDBaseClassifier(torch.nn.Module):
 
                 feat_norm = (feats / feats.norm(dim=-1, keepdim=True))
                 embed_norm = embedding_batch / embedding_batch.norm(dim=-1, keepdim=True)
-                
-#                 print('debug image embedding norm mean')
-#                 print(feat_norm.mean())
-                
-#                 print('debug text embedding norm mean')
-#                 print(embed_norm.mean())
-
-                # print('feat_norm', feat_norm.shape)
-                # print('embed_norm', embed_norm.shape)
 
                 feat_norm = feat_norm.float()
                 embed_norm = embed_norm.float()
 
-                dot_product = (feat_norm @ embed_norm.t())
+                dot_product = feat_norm @ embed_norm.t()
                 dot_product = dot_product.transpose(1, 2)
+                
+                #print('DEBUG logit scale!!!', self.logit_scale)
+                # logit_scale = torch.tensor(4.6028)
+                # dot_product = logit_scale.exp() * feat_norm @ embed_norm.t()
+                # dot_product = dot_product.transpose(1, 2)
+                # #try adding softmax?
+                # dot_product = dot_product.softmax(dim=1)
+                # print('\nDOT PRODUCT MIN MAX AFTER SOFTMAX')
+                # print(dot_product.min())
+                # print(dot_product.max())
 
                 # TODO is this matching coop? 4.6028
                 # logit_scale = getattr(self.backbone, 'logit_scale', None)
@@ -133,7 +134,7 @@ class OVDBaseClassifier(torch.nn.Module):
         cosim = cosim.reshape(-1, num_classes, patch_2d_size, patch_2d_size)
 
         # Interpolate cosine similarity maps to original resolution
-        cosim = F.interpolate(cosim, size=self.target_size, mode='bicubic')
+        cosim = F.interpolate(cosim, size=self.target_size, mode='bicubic') # TODO bilinear or bicubic? Doesn't seem to matter on small sample
         # print('cosim debug')
         # print(cosim.shape)
         # print(cosim[0,:5,:5,:5])

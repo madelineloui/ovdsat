@@ -30,6 +30,7 @@ def prepare_model(args):
         device = torch.device("cuda")
     else:
         device = torch.device("cpu")
+        
     # Load prototypes and background prototypes
     prototypes = torch.load(args.prototypes_path)
     print(f'Using object prototypes from {args.prototypes_path}')
@@ -37,7 +38,6 @@ def prepare_model(args):
     if args.bg_prototypes_path is not None:
         print(f'Using background prototypes from {args.bg_prototypes_path}')
     model = OVDDetector(prototypes, bg_prototypes, scale_factor=args.scale_factor, backbone_type=args.backbone_type, target_size=args.target_size, classification=args.classification, text=args.t).to(device)
-    #model.eval() 
     return model, device
 
 def process_batch(detections, labels, iouv):
@@ -78,8 +78,8 @@ def reclassify(labels, sc_cat):
 
 def eval_detection(args, model, val_dataloader, device):
     
-    viz_dir = f'{args.save_dir}/figures'
-    os.makedirs(viz_dir, exist_ok=True)
+    # viz_dir = f'{args.save_dir}/figures'
+    # os.makedirs(viz_dir, exist_ok=True)
     
     seen = 0
     iouv = torch.linspace(0.5, 0.95, 10, device=device)  # iou vector for mAP@0.5:0.95
@@ -110,8 +110,8 @@ def eval_detection(args, model, val_dataloader, device):
     stats = []
     with torch.no_grad():
         for i, batch in tqdm(enumerate(val_dataloader), total=len(val_dataloader), leave=False):
-            if i > 5: # TODO debug
-                break
+            # if i > 5: # TODO debug
+            #     break
             if args.classification != 'mask':
                 images, boxes, labels, metadata = batch
                 boxes = boxes.to(device)
@@ -119,25 +119,11 @@ def eval_detection(args, model, val_dataloader, device):
                 images, _, labels, masks, _ = batch
                 loc = masks.float().to(device)
                 
-            # print('DEBUG images in this batch')
-            # images, boxes, labels, metadata_list = batch
-            # for path in metadata["impath"]:
-            #     print(path)
-            
-            # print(labels)
-            # print('DEBUG')
-            # print('val_dataloader.dataset.get_categories()')
-            # print(val_dataloader.dataset.get_categories())
-            # print('model.classifier.get_categories()')
-            # print(model.classifier.get_categories())
             labels = map_labels_to_prototypes(val_dataloader.dataset.get_categories(), model.classifier.get_categories(), labels)
-            #print(labels)
-            np.save('labels.npy', labels)
             images = images.float().to(device)
             labels = labels.to(device)
 
             preds = model(images, iou_thr=args.iou_thr, conf_thres=args.conf_thres, aggregation=args.aggregation)
-            #print('preds\n', preds)
 
             for si, pred in enumerate(preds):
                 
@@ -322,15 +308,8 @@ def eval_detection(args, model, val_dataloader, device):
 def main(args):
     print('Setting up evaluation...')
     
-    # ### TODO - for debugging
-    # prototype = torch.load('/home/gridsan/manderson/ovdsat/run/init_prototypes/boxes/dior_N10-1/prototypes_clip-14.pt')
-    # print('\nusual prototype shape:', prototype['prototypes'].shape)
-    # print()
-
     # Initialize dataloader
-    #print("Before dataloader init")
     _, val_dataloader = init_dataloaders(args)
-    #print("After dataloader init, dataset length =", len(val_dataloader.dataset))
 
     # Load model
     model, device = prepare_model(args)
