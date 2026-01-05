@@ -17,8 +17,14 @@ class OVDBaseClassifier(torch.nn.Module):
         self.class_names = class_names
         self.text = text
         
+        # print('DEBUG 1')
+        # print(self.scale_factor)
+        
         if isinstance(self.scale_factor, int):
             self.scale_factor = [self.scale_factor]
+            # self.scale_factor = list(range(1, self.scale_factor + 1))
+            # print('SCALE FACTOR')
+            # print(self.scale_factor)
 
         # Initialize backbone
         if text:
@@ -98,19 +104,52 @@ class OVDBaseClassifier(torch.nn.Module):
 
                 feat_norm = (feats / feats.norm(dim=-1, keepdim=True))
                 embed_norm = embedding_batch / embedding_batch.norm(dim=-1, keepdim=True)
+                
+                # print(feat_norm.dtype)
+                # print(embed_norm.dtype)
 
                 feat_norm = feat_norm.float()
                 embed_norm = embed_norm.float()
-
-                dot_product = feat_norm @ embed_norm.t()
-                dot_product = dot_product.transpose(1, 2)
                 
-                #print('DEBUG logit scale!!!', self.logit_scale)
-                # logit_scale = torch.tensor(4.6028)
-                # dot_product = logit_scale.exp() * feat_norm @ embed_norm.t()
+                # print(feat_norm.dtype)
+                # print(embed_norm.dtype)
+                
+#                 print('\ndebug text embedding norm mean')
+#                 print(embed_norm.shape)
+#                 print(embed_norm.mean())
+#                 print(embed_norm.std())
+#                 print(embed_norm[0,:10])
+
+#                 print('\ndebug image embedding norm mean')
+#                 print(feat_norm.shape)
+#                 print(feat_norm.mean())
+#                 print(feat_norm.std())
+#                 print(feat_norm[0,0,:10])
+
+                # SIMILARITY
+                # dot_product = feat_norm @ embed_norm.t()
                 # dot_product = dot_product.transpose(1, 2)
-                # #try adding softmax?
-                # dot_product = dot_product.softmax(dim=1)
+                
+                # print('\nDEBUG sim')
+                # sim = dot_product
+                # print(sim.shape)
+                # print(sim.mean())
+                # print(sim.std())
+                # print(sim[0,:,0])
+                
+                # logit_scale = torch.tensor(4.6028)
+                # logits = logit_scale.exp() * dot_product
+                # print('\nlogits')
+                # print(logits.shape)
+                # print(logits.mean())
+                # print(logits.std())
+                # print(logits[:,:,0])
+                
+                #SOFTMAX
+                logit_scale = torch.tensor(4.6028)
+                dot_product = logit_scale.exp() * feat_norm @ embed_norm.t()
+                dot_product = dot_product.transpose(1, 2)
+                dot_product = dot_product.softmax(dim=1)
                 # print('\nDOT PRODUCT MIN MAX AFTER SOFTMAX')
                 # print(dot_product.min())
                 # print(dot_product.max())
@@ -155,6 +194,9 @@ class OVDBoxClassifier(OVDBaseClassifier):
             normalize (bool): Whether to normalize the cosine similarity maps
             return_cosim (bool): Whether to return the cosine similarity maps
         '''
+        # print('testinggg')
+        # print('DEBUG scale_factor')
+        # print(self.scale_factor)
         
         scales = []
 

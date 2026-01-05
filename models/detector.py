@@ -43,6 +43,7 @@ class OVDDetector(torch.nn.Module):
         else:
             all_prototypes = prototypes['prototypes']
 
+        #print('debug 10')
         # Initialize RPN
         if self.classification == 'box':
             self.rpn = BoxRPN(rpn_config, rpn_checkpoint)
@@ -52,6 +53,8 @@ class OVDDetector(torch.nn.Module):
             self.rpn = None
         elif self.classification == 'mask':
             raise NotImplementedError('Mask RPN not implemented yet. Should use SAM to generate proposals.')
+            
+        #print('debug 11')
 
         # if 'customclip' in backbone_type:
         #     ckpt_path = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/customclip.pth'
@@ -60,9 +63,14 @@ class OVDDetector(torch.nn.Module):
         # else:
         #     logit_scale = None
         
+        # print('scale_factor in detector')
+        # print(scale_factor)
+        
         # Initialize Classifier
         classifier = OVDBoxClassifier if classification == 'box' else OVDMaskClassifier
         self.classifier = classifier(all_prototypes, prototypes['label_names'], backbone_type, target_size, scale_factor, min_box_size, ignore_index, text=text)
+        
+        #print('debug 12')
     
 
     def forward(self, images, iou_thr=0.2, conf_thres=0.001, box_conf_threshold=0.01, aggregation='mean', labels=None):
@@ -83,6 +91,8 @@ class OVDDetector(torch.nn.Module):
 #         print('conf_thres')
 #         print(conf_thres)
 
+        #print('debug 13')
+
         with torch.no_grad():
             # Generate box proposals
             if self.classification == 'box':
@@ -91,10 +101,12 @@ class OVDDetector(torch.nn.Module):
                 boxes, proposals_scores, proposals = self.rpn(images)
             elif self.classification == 'mask':
                 raise NotImplementedError('Mask RPN not implemented yet. Should use SAM to generate proposals.')
-
+            #print('debug 14')
             # Classify boxes with classifier
             B, num_proposals = proposals_scores.shape
             preds = self.classifier(prepare_image_for_backbone(images, self.backbone_type, text=self.text), proposals, normalize=True, aggregation=aggregation)
+            
+            #print('debug 15')
 
             if num_proposals == 0:
                 return [torch.tensor([], device=images.device) for _ in range(B)]

@@ -80,6 +80,9 @@ class BoxRPN(torch.nn.Module):
         Args:
             images (torch.Tensor): Input tensor with shape (B, C, H, W)
         '''
+        # print('in box rpn')
+        # print(images.shape)
+        
         images = [(x - self.model.pixel_mean) / self.model.pixel_std for x in images]
         images = ImageList.from_tensors(
             images,
@@ -87,11 +90,25 @@ class BoxRPN(torch.nn.Module):
             padding_constraints=self.model.backbone.padding_constraints,
         )
         features = self.model.backbone(images.tensor)
+        # print(features.keys())
+        # print('features')
+        # print(features['p3'].shape)
+        # print(features['p4'].shape)
+        # print(features['p5'].shape)
+        # print(features['p6'].shape)
+        # print(features['p7'].shape)
 
         with torch.no_grad():
             proposals, _ = self.model.proposal_generator(images, features, None)
         
+        # print('proposals')
+        # print(len(proposals))
+        # print(type(proposals[0]))
+        # print(proposals[0])
+        
         boxes = torch.stack([p.proposal_boxes.tensor for p in proposals])
         box_scores = torch.stack([p.objectness_logits / self.box_norm_factor for p in proposals])
+        # print(boxes.shape)
+        # print(box_scores.shape)
 
         return boxes, box_scores

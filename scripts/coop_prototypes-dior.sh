@@ -13,8 +13,10 @@ BACKBONE=remoteclip-14
 BACKBONE_SHORT=remote
 DATASET=dior
 LABELS_DIR=/home/gridsan/manderson/ovdsat/data/text/${DATASET}_labels-coop.txt
+COOP_NAME=test9
+COOP_EPOCHS=25
 
-for N in 30
+for N in 3 10 30 100
 do
     for seed in 1
     do
@@ -22,6 +24,6 @@ do
             --save_dir run/coop_prototypes/boxes/${DATASET}_N${N}-${seed} \
             --backbone_type ${BACKBONE} \
             --labels_dir ${LABELS_DIR} \
-            --ctx_path CoOp/output/dior/CoOp/test4_${N}shots/nctx4_cscFalse_ctpmiddle/seed${seed}/prompt_learner/model.pth.tar-100
+            --ctx_path CoOp/output/dior/CoOp/${COOP_NAME}_${N}shots/nctx4_cscFalse_ctpmiddle/seed${seed}/prompt_learner/model.pth.tar-${COOP_EPOCHS}
     done
 done

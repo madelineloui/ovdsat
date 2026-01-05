@@ -25,6 +25,18 @@ PIXEL_MEAN = [0.48145466, 0.4578275, 0.40821073]
 PIXEL_STD = [0.26862954, 0.26130258, 0.27577711]
 coop_normalize = Normalize(mean=PIXEL_MEAN, std=PIXEL_STD)
 
+# Debugging
+import hashlib
+def state_dict_hash(module):
+    m = hashlib.sha256()
+    sd = module.state_dict()
+    for k in sorted(sd.keys()):
+        v = sd[k].detach().cpu()
+        m.update(k.encode())
+        m.update(v.numpy().tobytes())
+    return m.hexdigest()
+
+
 # Paths to the pre-trained models
 PATH_CKPT_CLIP14 = 'weights/clip-vit-large-patch14'
 PATH_CKPT_CLIP32 = 'weights/clip-vit-base-patch32'
@@ -345,7 +357,11 @@ def prepare_image_for_backbone(input_tensor, backbone_type, text=False):
         input_tensor = input_tensor[:, :3, :, :]  # Discard the alpha channel (4th channel)
         
     if text:
+        # TODO Convert to RGB to match CoOp
+        input_tensor = input_tensor[:, [2, 1, 0], :, :]
+        
         normalized_tensor = coop_normalize(input_tensor/255.0)
+        # print('\nnormalized image tensor')
         # print(normalized_tensor.mean())
         # print(normalized_tensor.std())
         # print(normalized_tensor[0,0,:5,:5])
@@ -426,6 +442,7 @@ def extract_clip_features(images, model, backbone_type, tile_size=224, text=Fals
         #print('DEBUG clip_model dtype')
         #print(model.dtype)
         model = model.to(images.device)
+        #print("CLIP visual hash:", state_dict_hash(model.visual))
         #model.float()
         #print(model.dtype)
 
@@ -450,6 +467,11 @@ def extract_clip_features(images, model, backbone_type, tile_size=224, text=Fals
                 
                 if text:
                     image_features = model.visual(tile.type(model.dtype)).unsqueeze(1)
+                    # print('\nimage features before norm')
+                    # print(image_features.shape)
+                    # print(image_features.mean())
+                    # print(image_features.std())
+                    # print(image_features[0,0,:10])
                     #image_features = model.visual(tile).unsqueeze(1)
                 else:
                     # Extract CLIP's features before token pooling
