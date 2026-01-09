@@ -48,6 +48,26 @@ NEW_CNAMES = {
     "trainstation": "train station",
     "vehicle": "vehicle",
     "windmill": "windmill",
+    "SU-35":  "SU-35 aircraft",
+    "C-130":  "C-130 aircraft",
+    "C-17":   "C-17 aircraft",
+    "C-5":    "C-5 aircraft",
+    "F-16":   "F-16 aircraft",
+    "TU-160": "TU-160 aircraft",
+    "E-3":    "E-3 aircraft",
+    "B-52":   "B-52 aircraft",
+    "P-3C":   "P-3C aircraft",
+    "B-1B":   "B-1B aircraft",
+    "E-8":    "E-8 aircraft",
+    "TU-22":  "TU-22 aircraft",
+    "F-15":   "F-15 aircraft",
+    "KC-135": "KC-135 aircraft",
+    "F-22":   "F-22 aircraft",
+    "FA-18":  "FA-18 aircraft",
+    "TU-95":  "TU-95 aircraft",
+    "KC-1":   "KC-1 aircraft",
+    "SU-34":  "SU-34 aircraft",
+    "SU-24":  "SU-24 aircraft",
 }
 
 def build_background_text_prototypes(args, tokenizer, model, device):
@@ -105,7 +125,14 @@ def build_text_prototypes(args, tokenizer, model, device):
     print(f'{len(classes)} class labels found')
         
     # Turn labels into prompts "a satellite image of a {label}"
-    prompts = [f'a satellite image of a {NEW_CNAMES[c]}' for c in classes]
+    prompts = []
+    for c in classes:
+        if c in NEW_CNAMES:
+            prompts.append(f'a satellite image of a {NEW_CNAMES[c]}')
+        else:
+            prompts.append(f'a satellite image of a {c}')
+    print('PROMPTS:')
+    print(prompts)
     
     # Tokenize and extract text features
     if any(b in args.backbone_type for b in ('openclip', 'remoteclip', 'georsclip')):
@@ -157,8 +184,8 @@ def main(args):
     # Build text prototypes
     obj_category_dict = build_text_prototypes(args, tokenizer, model, device)
 
-    print('EMBEDDING')
-    print(obj_category_dict['prototypes'][0][:100])
+    # print('EMBEDDING')
+    # print(obj_category_dict['prototypes'][0][:100])
 
     # Create save directory if it does not exist
     if not os.path.exists(args.save_dir):

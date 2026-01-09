@@ -10,12 +10,6 @@ from huggingface_hub import hf_hub_download
 import open_clip
 from models.custom_clip import CustomCLIPWrapper
 
-# # Import Long-CLIP
-# import sys
-# import os
-# model_path = os.path.join("/home/gridsan/manderson/ovdsat/Long-CLIP/model")
-# sys.path.append(os.path.abspath(model_path))
-
 # Import clip used in CoOp
 from CoOp.clip import clip
 
@@ -24,17 +18,6 @@ from torchvision.transforms import Normalize
 PIXEL_MEAN = [0.48145466, 0.4578275, 0.40821073]
 PIXEL_STD = [0.26862954, 0.26130258, 0.27577711]
 coop_normalize = Normalize(mean=PIXEL_MEAN, std=PIXEL_STD)
-
-# Debugging
-import hashlib
-def state_dict_hash(module):
-    m = hashlib.sha256()
-    sd = module.state_dict()
-    for k in sorted(sd.keys()):
-        v = sd[k].detach().cpu()
-        m.update(k.encode())
-        m.update(v.numpy().tobytes())
-    return m.hexdigest()
 
 
 # Paths to the pre-trained models
@@ -59,27 +42,71 @@ PATH_CKPT_CLIP14_FMOW = '/home/gridsan/manderson/train-CLIP/run/fmow/fmow-test-4
 PATH_CKPT_OPENCLIP14_FMOW = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-fmow-4.pt'
 PATH_CKPT_LONGCLIP14_FMOW = '/home/gridsan/manderson/ovdsat/Long-CLIP/checkpoints/005-07--05_28_20_longclip.pt'
 PATH_CKPT_OPENCLIP14_REMOTE_FMOW = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-remote-fmow.pt'
+PATH_CKPT_OPENCLIP14_GEORS_FMOW = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-geors-fmow.pt'
 
+# def load_clip_to_cpu():
 
-def load_clip_to_cpu():
+#     backbone_name = 'ViT-L/14'
+#     url = clip._MODELS[backbone_name]
+#     model_path = clip._download(url)
+
+#     try:
+#         # loading JIT archive
+#         model = torch.jit.load(model_path, map_location="cpu").eval()
+#         state_dict = None
+
+#     except RuntimeError:
+#         state_dict = torch.load(model_path, map_location="cpu")
+
+#     model = clip.build_model(state_dict or model.state_dict())
+
+#     ## TODO dont hardcode
+#     state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/RemoteCLIP-ViT-L-14.pt', map_location="cpu")
+#     model = clip.build_model(state_dict)
+
+#     return model
+
+def load_clip_to_cpu(backbone_name):
     
-    backbone_name = 'ViT-L/14'
-    url = clip._MODELS[backbone_name]
+    print('-> using backbone:', backbone_name)
+    
+    # Start with this for all
+    url = clip._MODELS["ViT-L/14"]
     model_path = clip._download(url)
-
     try:
         # loading JIT archive
         model = torch.jit.load(model_path, map_location="cpu").eval()
         state_dict = None
-
     except RuntimeError:
         state_dict = torch.load(model_path, map_location="cpu")
-
     model = clip.build_model(state_dict or model.state_dict())
     
-    ## TODO dont hardcode
-    state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/RemoteCLIP-ViT-L-14.pt', map_location="cpu")
-    model = clip.build_model(state_dict)
+    if backbone_name == 'clip-14':
+        print('LOADED CLIP-14!')
+        
+    if backbone_name == 'openclip-14':
+        model, _, _ = open_clip.create_model_and_transforms('ViT-L-14', pretrained='openai')
+        print('LOADED OPENCLIP-14!')
+    
+    elif backbone_name == 'remoteclip-14':
+        state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/RemoteCLIP-ViT-L-14.pt', map_location="cpu")
+        model = clip.build_model(state_dict) 
+        print('LOADED REMOTECLIP-14!')
+        
+    elif backbone_name == 'georsclip-14':
+        state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/RS5M_ViT-L-14.pt', map_location="cpu")
+        model = clip.build_model(state_dict) 
+        print('LOADED GEORSCLIP-14!')
+    
+    elif backbone_name == 'openclip-14-remote-fmow':
+        state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-remote-fmow.pt', map_location="cpu")
+        model = clip.build_model(state_dict) 
+        print('LOADED RemoteCLIP-14+FMOW!')
+        
+    elif backbone_name == 'openclip-14-geors-fmow':
+        state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-geors-fmow.pt', map_location="cpu")
+        model = clip.build_model(state_dict) 
+        print('LOADED GEORSCLIP-14+FMOW!')
         
     return model
 
@@ -232,13 +259,20 @@ def load_backbone(backbone_type):
         model = model.visual
         model.output_tokens = True
         print(f'Using checkpoint {PATH_CKPT_OPENCLIP14_REMOTE_FMOW}')
+    elif backbone_type == 'openclip-14-geors-fmow':
+        model, _, _ = open_clip.create_model_and_transforms('ViT-L-14')
+        ckpt = torch.load(PATH_CKPT_OPENCLIP14_GEORS_FMOW, map_location="cpu")
+        model.load_state_dict(ckpt)
+        model = model.visual
+        model.output_tokens = True
+        print(f'Using checkpoint {PATH_CKPT_OPENCLIP14_GEORS_FMOW}')
     else:
         print(f'Warning: {backbone_type} not in list!')
 
     for name, parameter in model.named_parameters():
         parameter.requires_grad = False
     return model
-              
+
 def load_backbone_and_tokenizer(backbone_type):
     '''
     Load backbone model and tokenizer for VL models (CLIP).
@@ -337,14 +371,20 @@ def load_backbone_and_tokenizer(backbone_type):
         model.load_state_dict(ckpt)
         tokenizer = open_clip.get_tokenizer('ViT-L-14')
         print(f'Using checkpoint {PATH_CKPT_OPENCLIP14_REMOTE_FMOW}')
+    elif backbone_type == 'openclip-14-geors-fmow':
+        model, _, _ = open_clip.create_model_and_transforms('ViT-L-14')
+        ckpt = torch.load(PATH_CKPT_OPENCLIP14_GEORS_FMOW, map_location="cpu")
+        model.load_state_dict(ckpt)
+        tokenizer = open_clip.get_tokenizer('ViT-L-14')
+        print(f'Using checkpoint {PATH_CKPT_OPENCLIP14_GEORS_FMOW}')
     else:
         print(f'Warning: {backbone_type} not in list!')
 
     for name, parameter in model.named_parameters():
         parameter.requires_grad = False
     return model, tokenizer
- 
-def prepare_image_for_backbone(input_tensor, backbone_type, text=False):
+
+def prepare_image_for_backbone(input_tensor, backbone_type, prototype_type='init_prototypes'): #text=False):
     '''
     Preprocess an image for the backbone model given an input tensor and the backbone type.
 
@@ -356,15 +396,15 @@ def prepare_image_for_backbone(input_tensor, backbone_type, text=False):
     if input_tensor.shape[1] == 4:
         input_tensor = input_tensor[:, :3, :, :]  # Discard the alpha channel (4th channel)
         
-    if text:
+    if prototype_type == 'text_prototypes' or prototype_type == 'coop_prototypes': # TODO and text_prototypes?
+    #if prototype_type == 'coop_prototypes':
+        #print('DEBUG 1')
+        
         # TODO Convert to RGB to match CoOp
         input_tensor = input_tensor[:, [2, 1, 0], :, :]
         
+        # TODO Match CoOp norm
         normalized_tensor = coop_normalize(input_tensor/255.0)
-        # print('\nnormalized image tensor')
-        # print(normalized_tensor.mean())
-        # print(normalized_tensor.std())
-        # print(normalized_tensor[0,0,:5,:5])
     
     else:
     
@@ -372,9 +412,6 @@ def prepare_image_for_backbone(input_tensor, backbone_type, text=False):
         if 'dinov2' in backbone_type:
             mean = torch.tensor([0.485, 0.456, 0.406]).to(input_tensor.device)
             std = torch.tensor([0.229, 0.224, 0.225]).to(input_tensor.device)
-        # elif 'customclip' in backbone_type:
-        #     mean = torch.tensor([0.4182007312774658, 0.4214799106121063, 0.3991275727748871]).to(input_tensor.device)
-        #     std = torch.tensor([0.28774282336235046, 0.27541765570640564, 0.2764017581939697]).to(input_tensor.device)
         else:
             mean = torch.tensor([0.48145466, 0.4578275, 0.40821073]).to(input_tensor.device)
             std = torch.tensor([0.26862954, 0.26130258, 0.27577711]).to(input_tensor.device)
@@ -387,7 +424,7 @@ def prepare_image_for_backbone(input_tensor, backbone_type, text=False):
 
     return normalized_tensor
 
-def get_backbone_params(backbone_type, text=False):
+def get_backbone_params(backbone_type, prototype_type='init_prototypes'): #text=False):
     '''
     Get the parameters patch size and embedding dimensionality of the backbone model given the backbone type.
 
@@ -395,7 +432,8 @@ def get_backbone_params(backbone_type, text=False):
         backbone_type (str): Backbone type
     '''
 
-    if text:
+    if prototype_type == 'text_prototypes' or prototype_type == 'coop_prototypes':
+        #print('DEBUG 2')
         D = 768
         if '14' in backbone_type:
             patch_size=14
@@ -413,7 +451,7 @@ def get_backbone_params(backbone_type, text=False):
     return patch_size, D
 
 
-def extract_clip_features(images, model, backbone_type, tile_size=224, text=False):
+def extract_clip_features(images, model, backbone_type, tile_size=224, prototype_type='init_prototypes'): #text=False):
     '''
     Extract features from a CLIP pre-trained backbone using a sliding window approach to handle images of variable sizes.
 
@@ -427,7 +465,7 @@ def extract_clip_features(images, model, backbone_type, tile_size=224, text=Fals
     # Extract size and number of tiles
     B, _, image_size, _ = images.shape
     
-    patch_size, D = get_backbone_params(backbone_type, text=text)
+    patch_size, D = get_backbone_params(backbone_type, prototype_type=prototype_type)
 
     num_tiles = (image_size // tile_size)**2 if image_size % tile_size == 0 else (image_size // tile_size + 1)**2
     num_tiles_side = int(num_tiles**0.5)
@@ -436,15 +474,12 @@ def extract_clip_features(images, model, backbone_type, tile_size=224, text=Fals
     output_features = torch.zeros((B, image_size // patch_size, image_size // patch_size, D)).to(images.device)
     count_tensor = torch.zeros((B, image_size // patch_size, image_size // patch_size,)).to(images.device)
     
-    # TODO: use exact model from CoOp
-    if text:
-        model = load_clip_to_cpu()
-        #print('DEBUG clip_model dtype')
-        #print(model.dtype)
+    # TODO: override model for CoOp/text
+    if prototype_type == 'text_prototypes' or prototype_type == 'coop_prototypes':
+    #if prototype_type == 'coop_prototypes':
+        #print('DEBUG 3')
+        model = load_clip_to_cpu(backbone_type)
         model = model.to(images.device)
-        #print("CLIP visual hash:", state_dict_hash(model.visual))
-        #model.float()
-        #print(model.dtype)
 
     with torch.no_grad():
         for i in range(num_tiles_side):
@@ -465,8 +500,14 @@ def extract_clip_features(images, model, backbone_type, tile_size=224, text=Fals
                 # Extract the tile from the original image
                 tile = images[:, :, start_i:end_i, start_j:end_j]
                 
-                if text:
-                    image_features = model.visual(tile.type(model.dtype)).unsqueeze(1)
+                if prototype_type == 'text_prototypes' or prototype_type == 'coop_prototypes':
+                #if prototype_type == 'coop_prototypes':
+                    #print('DEBUG 4')
+                    if 'openclip' in backbone_type:
+                        dtype = dtype = next(model.visual.parameters()).dtype
+                        image_features = model.visual(tile.to(dtype)).unsqueeze(1)
+                    else:
+                        image_features = model.visual(tile.type(model.dtype)).unsqueeze(1)
                     # print('\nimage features before norm')
                     # print(image_features.shape)
                     # print(image_features.mean())
@@ -478,9 +519,6 @@ def extract_clip_features(images, model, backbone_type, tile_size=224, text=Fals
                     #if backbone_type == 'clip-32' or backbone_type == 'clip-14':
                     if 'georsclip' in backbone_type or 'remoteclip' in backbone_type or 'openclip' in backbone_type or 'customclip' in backbone_type:
                         image_features = model(tile)[-1]
-                    # elif 'longclip' in backbone_type:
-                    #     tile = tile.half()
-                    #     image_features = model(tile, return_tokens=True)
                     elif 'clip-32' in backbone_type or 'clip-14' in backbone_type:
                         image_features = model(tile).last_hidden_state[:, 1:]
                     else:
@@ -499,7 +537,7 @@ def extract_clip_features(images, model, backbone_type, tile_size=224, text=Fals
     
     return output_features, count_tensor
 
-def extract_backbone_features(images, model, backbone_type, scale_factor=1, text=False):
+def extract_backbone_features(images, model, backbone_type, scale_factor=1, prototype_type='init_prototypes'): #text=False):
     '''
     Extract features from a pre-trained backbone for any of the supported backbones.
 
@@ -515,9 +553,28 @@ def extract_backbone_features(images, model, backbone_type, scale_factor=1, text
         with torch.no_grad():
             feats = model.forward_features(images)['x_prenorm'][:, 1:]
     elif 'clip' in backbone_type:
-        feats, _ = extract_clip_features(images, model, backbone_type, text=text)
+        feats, _ = extract_clip_features(images, model, backbone_type, prototype_type=prototype_type) #text=text)
         feats = feats.view(feats.shape[0], -1, feats.shape[-1])
     else:
         raise NotImplementedError('Backbone {} not implemented'.format(backbone_type))
+
+    return feats
+
+def extract_crop_features(crops, backbone, backbone_type, prototype_type='init_prototypes'): #text=False):
+    """
+    Args:
+        crops (Tensor): (N, C, H, W) cropped proposal images
+    Returns:
+        feats (Tensor): (N, K, D)
+    """
+    crops = F.interpolate(crops, size=(224, 224), mode='bicubic')
+    crops = prepare_image_for_backbone(crops, backbone_type, prototype_type=prototype_type) #text=text)
+
+    with torch.no_grad():
+        if 'dinov2' in backbone_type:
+            feats = backbone.forward_features(crops)['x_prenorm'][:, 1:]
+        else:
+            feats, _ = extract_clip_features(crops, backbone, backbone_type, prototype_type=prototype_type) #text=text)
+            feats = feats.view(feats.shape[0], -1, feats.shape[-1])
 
     return feats

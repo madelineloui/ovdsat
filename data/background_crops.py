@@ -77,30 +77,30 @@ def generate_background_crops_from_coco(
                 break
 
 
-# ==================== Example usage for train ====================
+#==================== Example usage for train ====================
 
-# for N in [1, 3, 5, 10, 30]:
-#     for M in [2, 3, 4, 5]:
-#         print(f'================ Processing train N={N}, M={M} ================')
+for N in [1, 3, 5, 10, 30]:
+    for M in [1, 2, 3]:
+        print(f'================ Processing train N={N}, M={M} ================')
 
-#         images_dir = "/home/gridsan/manderson/ovdsat/data/dior/JPEGImages"
-#         annotations_path = f"/home/gridsan/manderson/ovdsat/data/dior/train_coco_subset_N{N}-{M}.json"
-#         output_root = f"/home/gridsan/manderson/ovdsat/data/cropped_data/dior/train/dior_N{N}-{M}"
+        images_dir = "/home/gridsan/manderson/ovdsat/data/mar/JPEGImages"
+        annotations_path = f"/home/gridsan/manderson/ovdsat/mar/dior/train_coco_subset_N{N}-{M}.json"
+        output_root = f"/home/gridsan/manderson/ovdsat/data/cropped_data/mar/train/mar_N{N}-{M}"
 
-#         generate_background_crops_from_coco(
-#             annotations_path,
-#             images_dir,
-#             output_root,
-#         )
-#         print()
+        generate_background_crops_from_coco(
+            annotations_path,
+            images_dir,
+            output_root,
+        )
+        print()
 
 
-# ==================== Example usage for val ====================
+# # ==================== Example usage for val ====================
 
-for M in [1, 2, 3, 4, 5]:
-    print(f'================ Processing val M={M} ================')
+# for M in [1, 2, 3, 4, 5]:
+#     print(f'================ Processing val M={M} ================')
 
-    images_dir = "/home/gridsan/manderson/ovdsat/data/dior/JPEGImages"
-    annotations_path = f"/home/gridsan/manderson/ovdsat/data/dior/val_coco-{M}.json"
-    output_root = f"/home/gridsan/manderson/ovdsat/data/cropped_data/dior/val/dior_val-{M}"
-    generate_background_crops_from_coco(annotations_path, images_dir, output_root, max_images=1000)
+#     images_dir = "/home/gridsan/manderson/ovdsat/data/dior/JPEGImages"
+#     annotations_path = f"/home/gridsan/manderson/ovdsat/data/dior/val_coco-{M}.json"
+#     output_root = f"/home/gridsan/manderson/ovdsat/data/cropped_data/dior/val/dior_val-{M}"
+#     generate_background_crops_from_coco(annotations_path, images_dir, output_root, max_images=1000)

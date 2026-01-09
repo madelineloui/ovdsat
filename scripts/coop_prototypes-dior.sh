@@ -13,10 +13,10 @@ BACKBONE=remoteclip-14
 BACKBONE_SHORT=remote
 DATASET=dior
 LABELS_DIR=/home/gridsan/manderson/ovdsat/data/text/${DATASET}_labels-coop.txt
-COOP_NAME=test9
-COOP_EPOCHS=25
+COOP_NAME=test8
+COOP_EPOCHS=50
 
-for N in 3 10 30 100
+for N in 3
 do
     for seed in 1
     do

@@ -14,13 +14,12 @@ dataset=dior
 prototype_type=coop_prototypes
 finetune_type=boxes
 backbone=remoteclip-14
-bg=no_bg #with_bg
 
-for N in 30
+for N in 3
 do
     for M in 1
     do
-        python -u eval_detection.py \
+        python -u eval_detection-sample.py \
             --dataset ${dataset} \
             --val_root_dir ${DATA_DIR}/${dataset}/JPEGImages \
             --val_annotations_file ${DATA_DIR}/${dataset}/val_coco-${M}.json \
@@ -32,13 +31,7 @@ do
             --batch_size 128 \
             --num_workers 0 \
             --scale_factor 1 \
-            --t
+            --conf_thres 0.5 \
+            --prototype_type ${prototype_type}
     done
 done
-
-# Batch size can be 128
-#--bg_prototypes_path run/${prototype_type}/${finetune_type}/${bg}/${dataset}_N${N}-${M}/bg_prototypes_${backbone}.pt \
-#--val_annotations_file ${DATA_DIR}/${dataset}/val_coco-${M}.json \
-#--val_annotations_file ${DATA_DIR}/${dataset}/val_coco_N${N}-${M}.json \
-#--val_annotations_file ${DATA_DIR}/${dataset}/train_coco_subset_N${N}-${M}.json \
-# train_all_annotations_N${N}-${M}.json

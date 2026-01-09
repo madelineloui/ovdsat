@@ -37,7 +37,7 @@ def prepare_model(args):
     bg_prototypes = torch.load(args.bg_prototypes_path) if args.bg_prototypes_path is not None else None
     if args.bg_prototypes_path is not None:
         print(f'Using background prototypes from {args.bg_prototypes_path}')
-    model = OVDDetector(prototypes, bg_prototypes, scale_factor=args.scale_factor, backbone_type=args.backbone_type, target_size=args.target_size, classification=args.classification, text=args.t).to(device)
+    model = OVDDetector(prototypes, bg_prototypes, scale_factor=args.scale_factor, backbone_type=args.backbone_type, target_size=args.target_size, classification=args.classification, prototype_type=args.prototype_type).to(device)
     return model, device
 
 def process_batch(detections, labels, iouv):
@@ -78,12 +78,8 @@ def reclassify(labels, sc_cat):
 
 def eval_detection(args, model, val_dataloader, device):
     
-    # viz_dir = f'{args.save_dir}/figures'
-    # os.makedirs(viz_dir, exist_ok=True)
-    
     seen = 0
     iouv = torch.linspace(0.5, 0.95, 10, device=device)  # iou vector for mAP@0.5:0.95
-    #iouv = torch.linspace(0.25, 0.95, 10, device=device) # try mAP@0.25:0.95
     
     sc = args.sc
     
@@ -110,8 +106,6 @@ def eval_detection(args, model, val_dataloader, device):
     stats = []
     with torch.no_grad():
         for i, batch in tqdm(enumerate(val_dataloader), total=len(val_dataloader), leave=False):
-            # if i > 0: # TODO debug
-            #     break
             if args.classification != 'mask':
                 images, boxes, labels, metadata = batch
                 boxes = boxes.to(device)
@@ -155,91 +149,6 @@ def eval_detection(args, model, val_dataloader, device):
                     correct = process_batch(predn, labelsn, iouv)
 
                 stats.append((correct, pred[:, 4], pred[:, 5], targets_orig[:]))
-                
-                
-#                 ### Compute exact per-image AP@0.5 (for viz)
-#                 # Extract per-image stats
-#                 correct_img = correct[:, [0]].cpu().numpy()  # Only IoU=0.5
-#                 conf_img = pred[:, 4].detach().cpu().numpy()
-#                 pred_cls_img = pred[:, 5].detach().cpu().numpy()
-#                 true_cls_img = targets_orig.cpu().numpy()
-#                 # If there are no positive samples, skip AP computation
-#                 if len(true_cls_img) > 0 and len(pred_cls_img) > 0:
-#                     _, _, _, _, _, ap_img, ap_class_img = ap_per_class(
-#                         correct_img, conf_img, pred_cls_img, true_cls_img, names=names
-#                     )
-#                     image_map50 = ap_img[:, 0].mean()  # mean AP@0.5 across classes
-#                 else:
-#                     image_map50 = 0.0
-                
-                
-#                 ### Viz for each image
-#                 #img_np = images[si].detach().cpu().permute(1, 2, 0).numpy()
-#                 img_np = images[si].detach().cpu()[[2, 1, 0], :, :].permute(1, 2, 0).numpy()
-#                 # Clip to 1st–99th percentile range to remove outliers
-#                 low, high = np.percentile(img_np, [1, 99])
-#                 img_np = np.clip(img_np, low, high)
-#                 if img_np.max() > 1:  # normalize if values are 0–255
-#                     img_np = img_np / 255.0
-
-#                 fig, ax = plt.subplots(1, 1, figsize=(8, 8))
-#                 ax.imshow(img_np)
-                
-#                 ### Draw ground-truth boxes (green)
-#                 if nl > 0:
-#                     tbox_np = tbox.cpu().numpy()
-#                     targets_np = targets_orig.cpu().numpy()
-#                     for j, gt_box in enumerate(tbox_np):
-#                         x1, y1, x2, y2 = gt_box.tolist()
-#                         gt_label = int(targets_np[j])
-#                         rect = patches.Rectangle(
-#                             (x1, y1), x2 - x1, y2 - y1,
-#                             linewidth=2, edgecolor="lime", facecolor="none"
-#                         )
-#                         ax.add_patch(rect)
-#                         ax.text(
-#                             x1, max(y1 - 5, 0),
-#                             f"GT: {names[gt_label]}",
-#                             color="white", fontsize=7, weight="bold",
-#                             bbox=dict(facecolor="green", alpha=0.5, pad=1)
-#                         )
-
-#                 ### Draw predicted boxes (red)
-#                 if pred is not None and len(pred) > 0:
-#                     pred = pred.detach().cpu()
-
-#                     for box in pred:
-#                         x1, y1, x2, y2, score, label = box.tolist()
-
-#                         # draw rectangle
-#                         rect = patches.Rectangle(
-#                             (x1, y1), x2 - x1, y2 - y1,
-#                             linewidth=2, edgecolor="red", facecolor="none"
-#                         )
-#                         ax.add_patch(rect)
-
-#                         # add label and score
-#                         ax.text(
-#                             x1, max(y1 - 5, 0),
-#                             f"{names[int(label)]}: {score:.2f}",
-#                             color="yellow", fontsize=8, weight="bold",
-#                             bbox=dict(facecolor="black", alpha=0.5, pad=1)
-#                         )
-                        
-#                         # ax.set_title(f"mAP@0.5 = {image_map50:.3f}", color='white', fontsize=12, weight='bold', backgroundcolor='black')
-#                         filename = os.path.basename(metadata["impath"][si])
-#                         ax.set_title(
-#                             f"{filename}\n mAP@0.5 = {image_map50:.3f}",
-#                             color='white',
-#                             fontsize=12,
-#                             weight='bold',
-#                             backgroundcolor='black'
-#                         )
-
-#                 # Save instead of plt.show()
-#                 save_path = os.path.join(viz_dir, f"batch{i}_img{si}.png")
-#                 plt.savefig(save_path, bbox_inches="tight", dpi=150)
-#                 plt.close(fig)  # free memory
                 
     # Use original categories
     names = model.classifier.get_categories()
@@ -293,10 +202,16 @@ def eval_detection(args, model, val_dataloader, device):
                         map_new += ap[i]
                         mr_new += r[i]
                         mp_new += p[i]
-                map50_base /= len(base_classes)
-                map_base /= len(base_classes)
-                mr_base /= len(base_classes)
-                mp_base /= len(base_classes)
+                if len(base_classes) > 0:
+                    map50_base /= len(base_classes)
+                    map_base /= len(base_classes)
+                    mr_base /= len(base_classes)
+                    mp_base /= len(base_classes)
+                else:
+                    map50_base = 0
+                    map_base = 0
+                    mr_base = 0
+                    mp_base = 0
                 map50_new /= len(new_classes)
                 map_new /= len(new_classes)
                 mr_new /= len(new_classes)
@@ -340,7 +255,7 @@ if __name__ == '__main__':
     parser.add_argument('--scale_factor', nargs='+', type=int, default=2)
     parser.add_argument('--iou_thr', type=float, default=0.2)
     parser.add_argument('--conf_thres', type=float, default=0.1)
-    parser.add_argument('--t', action='store_true', default=False) # if using text
+    parser.add_argument('--prototype_type', type=str, default='init_prototypes') #init_prototypes, coop_prototypes, text_prototypes (zeroshot)
     parser.add_argument('--sc', action='store_true', default=False)
     args = parser.parse_args()
     main(args)

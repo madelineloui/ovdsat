@@ -7,7 +7,7 @@ from utils_dir.backbones_utils import extract_backbone_features, load_backbone, 
 
 class OVDBaseClassifier(torch.nn.Module):
 
-    def __init__(self, prototypes, class_names, backbone_type='dinov2', target_size=(602,602), scale_factor=2, min_box_size=5, ignore_index=-1, text=False):
+    def __init__(self, prototypes, class_names, backbone_type='dinov2', target_size=(602,602), scale_factor=2, min_box_size=5, ignore_index=-1, prototype_type='init_prototypes'): #text=False):
         super().__init__()
         self.scale_factor = scale_factor
         self.target_size = target_size
@@ -15,19 +15,16 @@ class OVDBaseClassifier(torch.nn.Module):
         self.ignore_index = ignore_index
         self.backbone_type = backbone_type
         self.class_names = class_names
-        self.text = text
+        #self.text = text
+        self.prototype_type = prototype_type
         
-        # print('DEBUG 1')
-        # print(self.scale_factor)
+        print(prototype_type)
         
         if isinstance(self.scale_factor, int):
             self.scale_factor = [self.scale_factor]
-            # self.scale_factor = list(range(1, self.scale_factor + 1))
-            # print('SCALE FACTOR')
-            # print(self.scale_factor)
 
         # Initialize backbone
-        if text:
+        if self.prototype_type == 'text_prototypes' or self.prototype_type == 'coop_prototypes':
             self.backbone, _ = load_backbone_and_tokenizer(backbone_type)  
         else:
             self.backbone = load_backbone(backbone_type)  
@@ -75,7 +72,9 @@ class OVDBaseClassifier(torch.nn.Module):
             embedding_batch = embeddings[start_idx:end_idx]  # Get a batch of embeddings
             
             ### Original dot product
-            if not self.text: 
+            #if not self.text: 
+            if self.prototype_type == 'init_prototypes':
+                #print('-> init_prototype (dot product)')
                 # Reshape and broadcast for cosine similarity
                 B, K, D = feats.shape
                 features_reshaped = feats.view(B, 1, K, D)
@@ -93,74 +92,94 @@ class OVDBaseClassifier(torch.nn.Module):
 
                 if self.logit_scale: # for coop, add the logit scale
                     dot_product *= self.logit_scale.exp()
- 
-             
+                    
             else:
-            # print('DEBUG')
-            # print('feats', feats.shape)
-            # print('embedding_batch', embedding_batch.shape)
-            
-                ### Modified to exactly match CLIP cosine similarity in CoOp
-
                 feat_norm = (feats / feats.norm(dim=-1, keepdim=True))
                 embed_norm = embedding_batch / embedding_batch.norm(dim=-1, keepdim=True)
-                
-                # print(feat_norm.dtype)
-                # print(embed_norm.dtype)
-
                 feat_norm = feat_norm.float()
                 embed_norm = embed_norm.float()
                 
-                # print(feat_norm.dtype)
-                # print(embed_norm.dtype)
-                
-#                 print('\ndebug text embedding norm mean')
-#                 print(embed_norm.shape)
-#                 print(embed_norm.mean())
-#                 print(embed_norm.std())
-#                 print(embed_norm[0,:10])
+                if self.prototype_type == 'text_prototypes':
+                    #print('-> text_prototype (similarity)')
+                    #SIMILARITY
+                    dot_product = feat_norm @ embed_norm.t()
+                    dot_product = dot_product.transpose(1, 2)
+                    
+                elif self.prototype_type == 'coop_prototypes':
+                    #print('-> coop_prototype (softmax)')
+                    #SOFTMAX
+                    logit_scale = torch.tensor(4.6028)
+                    dot_product = logit_scale.exp() * feat_norm @ embed_norm.t()
+                    dot_product = dot_product.transpose(1, 2)
+                    dot_product = dot_product.softmax(dim=1)
+                else:
+                    print(f'ERROR: invalid prototype_type: {self.prototype_type}!')
 
-#                 print('\ndebug image embedding norm mean')
-#                 print(feat_norm.shape)
-#                 print(feat_norm.mean())
-#                 print(feat_norm.std())
-#                 print(feat_norm[0,0,:10])
+#             # print('DEBUG')
+#             # print('feats', feats.shape)
+#             # print('embedding_batch', embedding_batch.shape)
 
-                # SIMILARITY
-                # dot_product = feat_norm @ embed_norm.t()
-                # dot_product = dot_product.transpose(1, 2)
-                
-                # print('\nDEBUG sim')
-                # sim = dot_product
-                # print(sim.shape)
-                # print(sim.mean())
-                # print(sim.std())
-                # print(sim[0,:,0])
-                
-                # logit_scale = torch.tensor(4.6028)
-                # logits = logit_scale.exp() * dot_product
-                # print('\nlogits')
-                # print(logits.shape)
-                # print(logits.mean())
-                # print(logits.std())
-                # print(logits[:,:,0])
-                
-                #SOFTMAX
-                logit_scale = torch.tensor(4.6028)
-                dot_product = logit_scale.exp() * feat_norm @ embed_norm.t()
-                dot_product = dot_product.transpose(1, 2)
-                dot_product = dot_product.softmax(dim=1)
-                # print('\nDOT PRODUCT MIN MAX AFTER SOFTMAX')
-                # print(dot_product.min())
-                # print(dot_product.max())
+#                 ### Modified to exactly match CLIP cosine similarity in CoOp
 
-                # TODO is this matching coop? 4.6028
-                # logit_scale = getattr(self.backbone, 'logit_scale', None)
-                # print('logit scale debug')
-                # print(logit_scale)
-                # if logit_scale is not None:
-                #     dot_product *= logit_scale.exp()
-                
+#                 feat_norm = (feats / feats.norm(dim=-1, keepdim=True))
+#                 embed_norm = embedding_batch / embedding_batch.norm(dim=-1, keepdim=True)
+
+#                 # print(feat_norm.dtype)
+#                 # print(embed_norm.dtype)
+
+#                 feat_norm = feat_norm.float()
+#                 embed_norm = embed_norm.float()
+
+#                 # print(feat_norm.dtype)
+#                 # print(embed_norm.dtype)
+
+# #                 print('\ndebug text embedding norm mean')
+# #                 print(embed_norm.shape)
+# #                 print(embed_norm.mean())
+# #                 print(embed_norm.std())
+# #                 print(embed_norm[0,:10])
+
+# #                 print('\ndebug image embedding norm mean')
+# #                 print(feat_norm.shape)
+# #                 print(feat_norm.mean())
+# #                 print(feat_norm.std())
+# #                 print(feat_norm[0,0,:10])
+
+#                 # SIMILARITY
+#                 # dot_product = feat_norm @ embed_norm.t()
+#                 # dot_product = dot_product.transpose(1, 2)
+
+#                 # print('\nDEBUG sim')
+#                 # sim = dot_product
+#                 # print(sim.shape)
+#                 # print(sim.mean())
+#                 # print(sim.std())
+#                 # print(sim[0,:,0])
+
+#                 # logit_scale = torch.tensor(4.6028)
+#                 # logits = logit_scale.exp() * dot_product
+#                 # print('\nlogits')
+#                 # print(logits.shape)
+#                 # print(logits.mean())
+#                 # print(logits.std())
+#                 # print(logits[:,:,0])
+
+#                 #SOFTMAX
+#                 logit_scale = torch.tensor(4.6028)
+#                 dot_product = logit_scale.exp() * feat_norm @ embed_norm.t()
+#                 dot_product = dot_product.transpose(1, 2)
+#                 dot_product = dot_product.softmax(dim=1)
+#                 # print('\nDOT PRODUCT MIN MAX AFTER SOFTMAX')
+#                 # print(dot_product.min())
+#                 # print(dot_product.max())
+
+#                 # TODO is this matching coop? 4.6028
+#                 # logit_scale = getattr(self.backbone, 'logit_scale', None)
+#                 # print('logit scale debug')
+#                 # print(logit_scale)
+#                 # if logit_scale is not None:
+#                 #     dot_product *= logit_scale.exp()
+
                 
                 
             # Append the similarity scores for this batch to the list
@@ -179,11 +198,11 @@ class OVDBaseClassifier(torch.nn.Module):
         # print(cosim[0,:5,:5,:5])
 
         return cosim
-    
-    
+
+
 class OVDBoxClassifier(OVDBaseClassifier):
-    def __init__(self, prototypes, class_names, backbone_type='dinov2', target_size=(602,602), scale_factor=2, min_box_size=5, ignore_index=-1, text=False):
-        super().__init__(prototypes, class_names, backbone_type, target_size, scale_factor, min_box_size, ignore_index, text)
+    def __init__(self, prototypes, class_names, backbone_type='dinov2', target_size=(602,602), scale_factor=2, min_box_size=5, ignore_index=-1, prototype_type='init_prototypes'): #text=False):
+        super().__init__(prototypes, class_names, backbone_type, target_size, scale_factor, min_box_size, ignore_index, prototype_type) #text)
         
     def forward(self, images, boxes, cls=None, normalize=False, return_cosim=False, aggregation='mean', k=10):
         '''
@@ -194,14 +213,11 @@ class OVDBoxClassifier(OVDBaseClassifier):
             normalize (bool): Whether to normalize the cosine similarity maps
             return_cosim (bool): Whether to return the cosine similarity maps
         '''
-        # print('testinggg')
-        # print('DEBUG scale_factor')
-        # print(self.scale_factor)
         
         scales = []
 
         for scale in self.scale_factor:
-            feats = extract_backbone_features(images, self.backbone, self.backbone_type, scale_factor=scale, text=self.text)
+            feats = extract_backbone_features(images, self.backbone, self.backbone_type, scale_factor=scale, prototype_type=self.prototype_type) #text=self.text)
             cosine_sim = self.get_cosim_mini_batch(feats, self.embedding, normalize=normalize)
             scales.append(cosine_sim)
 
@@ -236,8 +252,13 @@ class OVDBoxClassifier(OVDBaseClassifier):
                 if aggregation == 'mean':
                     box_sim = cosine_sim[b, :, y_min:y_max, x_min:x_max].mean(dim=[1, 2])
                 elif aggregation == 'max':
-                    _,n,h,w = cosine_sim.shape
-                    box_sim, _ = cosine_sim[b, :, y_min:y_max - 1, x_min:x_max - 1].reshape(n, -1).max(dim=1)
+                    region = cosine_sim[b, :, y_min:y_max, x_min:x_max]
+                    if region.numel() == 0:
+                        box_sim = torch.zeros(self.num_classes, device=cosine_sim.device)
+                    else:
+                        box_sim = region.reshape(region.shape[0], -1).max(dim=1).values
+                    #_,n,h,w = cosine_sim.shape
+                    #box_sim, _ = cosine_sim[b, :, y_min:y_max - 1, x_min:x_max - 1].reshape(n, -1).max(dim=1)
                 elif aggregation == 'topk':
                     _,n,h,w = cosine_sim.shape
                     box_sim = cosine_sim[b, :, y_min:y_max - 1, x_min:x_max - 1].reshape(n, -1)
@@ -259,8 +280,8 @@ class OVDBoxClassifier(OVDBaseClassifier):
 
         # Flatten box_logits and target_labels
         return box_similarities.view(B, -1, self.num_classes)
-    
-    
+
+
 class OVDImageClassifier(OVDBaseClassifier):
     def __init__(self, prototypes, class_names, backbone_type='dinov2', target_size=(602,602), scale_factor=2, min_box_size=5, ignore_index=-1, text=False):
         super().__init__(prototypes, class_names, backbone_type, target_size, scale_factor, min_box_size, ignore_index, text)
@@ -375,7 +396,7 @@ class OVDMaskClassifier(OVDBaseClassifier):
             raise ValueError('Invalid aggregation method')
 
         return mask_sim
-    
+
 """
 class ZeroShotClassifier(torch.nn.Module):
      def __init__(self, prototypes, class_names, backbone_type='clip-14', target_size=(602,602), scale_factor=2, min_box_size=5, ignore_index=-1):

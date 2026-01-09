@@ -57,6 +57,8 @@ def preprocess(image, mask=None, backbone_type='dinov2', target_size=(602, 602),
         m_w, m_h = target_size
         mask = transforms.Resize((m_w//patch_size, m_h//patch_size), interpolation=Image.NEAREST)(mask)
     
+    #image = transform(image).unsqueeze(0)
+    image = image.convert("RGB")
     image = transform(image).unsqueeze(0)
 
     return image, mask
@@ -159,6 +161,7 @@ def build_background_prototypes(args, model, device, patch_size):
         
         # Read image and annotations
         filename = image_info['file_name']
+ 
         annotations = [ann for ann in dataset['annotations'] if ann['image_id'] == image_info['id']]
         image = Image.open(os.path.join(args.data_dir, filename))
         image, _ = preprocess(image, backbone_type=args.backbone_type, target_size=args.target_size, patch_size=patch_size)
