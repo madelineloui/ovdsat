@@ -44,28 +44,8 @@ PATH_CKPT_LONGCLIP14_FMOW = '/home/gridsan/manderson/ovdsat/Long-CLIP/checkpoint
 PATH_CKPT_OPENCLIP14_REMOTE_FMOW = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-remote-fmow.pt'
 PATH_CKPT_OPENCLIP14_GEORS_FMOW = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-geors-fmow.pt'
 
-# def load_clip_to_cpu():
 
-#     backbone_name = 'ViT-L/14'
-#     url = clip._MODELS[backbone_name]
-#     model_path = clip._download(url)
-
-#     try:
-#         # loading JIT archive
-#         model = torch.jit.load(model_path, map_location="cpu").eval()
-#         state_dict = None
-
-#     except RuntimeError:
-#         state_dict = torch.load(model_path, map_location="cpu")
-
-#     model = clip.build_model(state_dict or model.state_dict())
-
-#     ## TODO dont hardcode
-#     state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/RemoteCLIP-ViT-L-14.pt', map_location="cpu")
-#     model = clip.build_model(state_dict)
-
-#     return model
-
+# For text-based models
 def load_clip_to_cpu(backbone_name):
     
     print('-> using backbone:', backbone_name)
@@ -82,31 +62,31 @@ def load_clip_to_cpu(backbone_name):
     model = clip.build_model(state_dict or model.state_dict())
     
     if backbone_name == 'clip-14':
-        print('LOADED CLIP-14!')
+        print('LOADED CLIP-14! (load_clip_to_cpu)')
         
     if backbone_name == 'openclip-14':
         model, _, _ = open_clip.create_model_and_transforms('ViT-L-14', pretrained='openai')
-        print('LOADED OPENCLIP-14!')
+        print('LOADED OPENCLIP-14! (load_clip_to_cpu)')
     
     elif backbone_name == 'remoteclip-14':
         state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/RemoteCLIP-ViT-L-14.pt', map_location="cpu")
         model = clip.build_model(state_dict) 
-        print('LOADED REMOTECLIP-14!')
+        print('LOADED REMOTECLIP-14! (load_clip_to_cpu)')
         
     elif backbone_name == 'georsclip-14':
         state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/RS5M_ViT-L-14.pt', map_location="cpu")
         model = clip.build_model(state_dict) 
-        print('LOADED GEORSCLIP-14!')
+        print('LOADED GEORSCLIP-14! (load_clip_to_cpu)')
     
     elif backbone_name == 'openclip-14-remote-fmow':
         state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-remote-fmow.pt', map_location="cpu")
         model = clip.build_model(state_dict) 
-        print('LOADED RemoteCLIP-14+FMOW!')
+        print('LOADED RemoteCLIP-14+FMOW! (load_clip_to_cpu)')
         
     elif backbone_name == 'openclip-14-geors-fmow':
         state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-geors-fmow.pt', map_location="cpu")
         model = clip.build_model(state_dict) 
-        print('LOADED GEORSCLIP-14+FMOW!')
+        print('LOADED GEORSCLIP-14+FMOW! (load_clip_to_cpu)')
         
     return model
 
@@ -286,14 +266,14 @@ def load_backbone_and_tokenizer(backbone_type):
     elif backbone_type == 'clip-14':
         model = CLIPModel.from_pretrained(PATH_CKPT_CLIP14)
         tokenizer = CLIPTokenizer.from_pretrained(PATH_CKPT_CLIP14)
-        print('LOADING CLIP_14!')
+        print('LOADED CLIP_14!')
     elif backbone_type == 'openclip-32':
         model, _, _ = open_clip.create_model_and_transforms('ViT-B-32', pretrained='openai')
         tokenizer = open_clip.get_tokenizer('ViT-B-32')
     elif backbone_type == 'openclip-14':
         model, _, _ = open_clip.create_model_and_transforms('ViT-L-14', pretrained='openai')
         tokenizer = open_clip.get_tokenizer('ViT-L-14')
-        print('LOADING OPENCLIP_14!')
+        print('LOADED OPENCLIP_14!')
     elif backbone_type == 'georsclip-32':
         model, _, _ = open_clip.create_model_and_transforms('ViT-B-32')
         ckpt = torch.load(PATH_CKPT_GEORSCLIP_32, map_location="cpu")
@@ -304,6 +284,7 @@ def load_backbone_and_tokenizer(backbone_type):
         ckpt = torch.load(PATH_CKPT_GEORSCLIP_14, map_location="cpu")
         model.load_state_dict(ckpt)
         tokenizer = open_clip.get_tokenizer('ViT-L-14')
+        print('LOADED GEORSCLIP_14!')
     elif backbone_type == 'remoteclip-32':
         model, _, _ = open_clip.create_model_and_transforms('ViT-B-32')
         ckpt = torch.load(PATH_CKPT_REMOTECLIP_32, map_location="cpu")
@@ -314,6 +295,7 @@ def load_backbone_and_tokenizer(backbone_type):
         ckpt = torch.load(PATH_CKPT_REMOTECLIP_14, map_location="cpu")
         model.load_state_dict(ckpt)
         tokenizer = open_clip.get_tokenizer('ViT-L-14')
+        print('LOADED REMOTECLIP_14!')
     elif backbone_type == 'clip-14-gpte-1024-epoch50':
         model = CLIPModel.from_pretrained(PATH_CKPT_CLIP14)
         ckpt = torch.load(PATH_CKPT_CLIP14_GPTe_1024_EPOCH50, map_location="cpu")
@@ -371,12 +353,14 @@ def load_backbone_and_tokenizer(backbone_type):
         model.load_state_dict(ckpt)
         tokenizer = open_clip.get_tokenizer('ViT-L-14')
         print(f'Using checkpoint {PATH_CKPT_OPENCLIP14_REMOTE_FMOW}')
+        print('LOADED REMOTE-FMOW-CLIP_14!')
     elif backbone_type == 'openclip-14-geors-fmow':
         model, _, _ = open_clip.create_model_and_transforms('ViT-L-14')
         ckpt = torch.load(PATH_CKPT_OPENCLIP14_GEORS_FMOW, map_location="cpu")
         model.load_state_dict(ckpt)
         tokenizer = open_clip.get_tokenizer('ViT-L-14')
         print(f'Using checkpoint {PATH_CKPT_OPENCLIP14_GEORS_FMOW}')
+        print('LOADED GEORS-FMOW-CLIP_14!')
     else:
         print(f'Warning: {backbone_type} not in list!')
 
@@ -503,7 +487,7 @@ def extract_clip_features(images, model, backbone_type, tile_size=224, prototype
                 if prototype_type == 'text_prototypes' or prototype_type == 'coop_prototypes':
                 #if prototype_type == 'coop_prototypes':
                     #print('DEBUG 4')
-                    if 'openclip' in backbone_type:
+                    if backbone_type == 'openclip-14':
                         dtype = dtype = next(model.visual.parameters()).dtype
                         image_features = model.visual(tile.to(dtype)).unsqueeze(1)
                     else:

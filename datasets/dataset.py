@@ -41,11 +41,8 @@ class BaseDataset(Dataset):
         #print('FILENAME', filename)
         path = os.path.join(self.images_dir, filename)
         image = cv2.imread(path)
-        #print(image.shape)
-        
         # print('debug cv2 cvtcolor')
         #image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) # TODO convert to RGB to match CoOp
-        
         # img = Image.open(path).convert("RGB") # TODO try pil?
         # to_tensor = T.ToTensor()
         # img = to_tensor(img)
@@ -72,68 +69,65 @@ class BoxDataset(BaseDataset):
         return labels, boxes
 
     def __getitem__(self, idx):
-        try:
-            #print('loading image')
-            image, path = self.load_image(idx)
-            labels, boxes = self.load_target(idx)
+        #print('loading image')
+        image, path = self.load_image(idx)
+        labels, boxes = self.load_target(idx)
+        
+        h, w, _ = image.shape
+        #_ , w, h = image.shape
+        metadata = {
+            "width": w,
+            "height": h,
+            "impath": path,
+        }
 
-            h, w, _ = image.shape
-            #_ , w, h = image.shape
-            metadata = {
-                "width": w,
-                "height": h,
-                "impath": path,
-            }
-
-            # Apply augmentations        
-            if self.augmentations:
-                #print('in aug')
-                #print(self.augmentations)
-                #print()
-                transformed = self.augmentations(
-                    image=image, 
-                    bboxes=boxes, 
-                    category_ids=labels
-                )
-                image = torch.as_tensor(transformed['image'].astype("float32").transpose(2, 0, 1)) #/ 255.0 # TODO /255.0? remove for now?
+        # Apply augmentations        
+        if self.augmentations:
+            # print('in aug')
+            # print(self.augmentations)
+            # print()
+            
+            boxes = [
+                (max(0.0, x1), max(0.0, y1), x2, y2)
+                for x1, y1, x2, y2 in boxes
+            ]
                 
-                # # TODO override the image transform?
-                # image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1)) 
-                # resize_transform = T.Resize((602, 602))
-                # image = resize_transform(image)
+            transformed = self.augmentations(
+                image=image, 
+                bboxes=boxes, 
+                category_ids=labels
+            )
+            #image = torch.as_tensor(transformed['image'].astype("float32").transpose(2, 0, 1)) #/ 255.0 # TODO /255.0?
+            resize_transform = T.Resize((602, 602))
+            image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1)) #/ 255.0 # TODO do not apply the transform (cv2)
+            image = resize_transform(image)
+            boxes = transformed['bboxes']
+            # print('getitem')
+            # print(image.shape)
+            # print(image.mean())
+            # #print(image[:5,:5,:5])
+            # print()
+            labels = transformed['category_ids']
+        else:
+            image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1)) #/ 255.0 # TODO /255.0?
 
-                boxes = transformed['bboxes']
-                labels = transformed['category_ids']
-                
-                #print('getitem')
-                # print(image.shape)
-                # print(image.mean())
-                # print(image.std())
-                # print(image[:5,:5,:5])
-                # print()
-            else:
-                image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1)) #/ 255.0 # TODO /255.0?
+        # Convert lists to numpy arrays before creating tensors
+        boxes = np.array(boxes)
+        labels = np.array(labels)
 
-            # Convert lists to numpy arrays before creating tensors
-            boxes = np.array(boxes)
-            labels = np.array(labels)
+        # Pad bounding boxes and labels to a fixed size based on the number of annotations
+        num_boxes = len(boxes)
+        padded_boxes = torch.tensor(boxes).float()
+        padded_labels = torch.tensor(labels).float()
 
-            # Pad bounding boxes and labels to a fixed size based on the number of annotations
-            num_boxes = len(boxes)
-            padded_boxes = torch.tensor(boxes).float()
-            padded_labels = torch.tensor(labels).float()
-
-            # Pad to the maximum number of boxes
-            if num_boxes < self.max_boxes:
-                pad_boxes = torch.zeros((self.max_boxes - num_boxes, 4))
-                pad_labels = torch.full((self.max_boxes - num_boxes,), -1)
-                padded_boxes = torch.cat([padded_boxes, pad_boxes], dim=0)
-                padded_labels = torch.cat([padded_labels, pad_labels], dim=0)
-
-            return image, padded_boxes, padded_labels, metadata
-        except Exception as e:
-            print(f"Skipping {self.paths[idx]}: {e}")
-            return None
+        # Pad to the maximum number of boxes
+        if num_boxes < self.max_boxes:
+            pad_boxes = torch.zeros((self.max_boxes - num_boxes, 4))
+            pad_labels = torch.full((self.max_boxes - num_boxes,), -1)
+            padded_boxes = torch.cat([padded_boxes, pad_boxes], dim=0)
+            padded_labels = torch.cat([padded_labels, pad_labels], dim=0)
+        
+        return image, padded_boxes, padded_labels, metadata
 
 class OBBDataset(BaseDataset):
 

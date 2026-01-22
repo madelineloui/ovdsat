@@ -15,9 +15,10 @@ from torchvision import transforms
 from argparse import ArgumentParser
 from utils_dir.backbones_utils import load_backbone_and_tokenizer, extract_backbone_features, get_backbone_params
 from CoOp.clip import clip
+#from CoOp.clip.simple_tokenizer import SimpleTokenizer as _Tokenizer
+import open_clip
 import torch.nn as nn
 
-# TODO should enable cfg from CoOp for more seamless integration
 
 NEW_CNAMES = {
     "airplane": "airplane",
@@ -61,6 +62,21 @@ NEW_CNAMES = {
     "KC-1":   "KC-1 aircraft",
     "SU-34":  "SU-34 aircraft",
     "SU-24":  "SU-24 aircraft",
+    "car": "car",
+    "truck": "truck",
+    "airliner": "airliner",
+    "stairtruck": "stair truck",
+    "van": "van",
+    "bus": "bus",
+    "longvehicle": "long vehicle",
+    "boat": "boat",
+    "propeller": "propeller aircraft",
+    "chartered": "chartered aircraft",
+    "pushbacktruck": "pushback truck",
+    "other": "others",
+    "fighter": "fighter aircraft",
+    "trainer": "trainer aircraft",
+    "helicopter": "helicopter",
 }
     
 class TextEncoder(nn.Module):
@@ -85,30 +101,76 @@ class TextEncoder(nn.Module):
 
         return x
 
-def load_clip_to_cpu():
+# def load_clip_to_cpu():
     
-    backbone_name = "ViT-L/14" # TODO hardcoded
-    url = clip._MODELS[backbone_name]
-    model_path = clip._download(url)
+#     backbone_name = "ViT-L/14"
+#     url = clip._MODELS[backbone_name]
+#     model_path = clip._download(url)
 
+#     try:
+#         # loading JIT archive
+#         model = torch.jit.load(model_path, map_location="cpu").eval()
+#         state_dict = None
+
+#     except RuntimeError:
+#         state_dict = torch.load(model_path, map_location="cpu")
+
+#     model = clip.build_model(state_dict or model.state_dict())
+    
+#     # TODO: hardcoded to use remoteclip
+#     state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/RemoteCLIP-ViT-L-14.pt', map_location="cpu")
+#     model = clip.build_model(state_dict)
+                                 
+#     return model
+
+
+def load_clip_to_cpu(backbone_name):
+    
+    print('-> using backbone:', backbone_name)
+    
+    # Start with this for all
+    url = clip._MODELS["ViT-L/14"]
+    model_path = clip._download(url)
     try:
         # loading JIT archive
         model = torch.jit.load(model_path, map_location="cpu").eval()
         state_dict = None
-
     except RuntimeError:
         state_dict = torch.load(model_path, map_location="cpu")
-
     model = clip.build_model(state_dict or model.state_dict())
     
-    # TODO: hardcoded to use remoteclip
-    state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/RemoteCLIP-ViT-L-14.pt', map_location="cpu")
-    model = clip.build_model(state_dict)
-                                 
+    if backbone_name == 'clip-14':
+        print('LOADED CLIP-14!')
+        
+    if backbone_name == 'openclip-14':
+        model, _, _ = open_clip.create_model_and_transforms('ViT-L-14', pretrained='openai')
+        model.dtype = next(model.visual.parameters()).dtype
+        print('LOADED OPENCLIP-14!')
+    
+    elif backbone_name == 'remoteclip-14':
+        state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/RemoteCLIP-ViT-L-14.pt', map_location="cpu")
+        model = clip.build_model(state_dict) 
+        print('LOADED REMOTECLIP-14!')
+        
+    elif backbone_name == 'georsclip-14':
+        state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/RS5M_ViT-L-14.pt', map_location="cpu")
+        model = clip.build_model(state_dict) 
+        print('LOADED GEORSCLIP-14!')
+    
+    elif backbone_name == 'openclip-14-remote-fmow':
+        state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-remote-fmow.pt', map_location="cpu")
+        model = clip.build_model(state_dict) 
+        print('LOADED RemoteCLIP-14+FMOW!')
+        
+    elif backbone_name == 'openclip-14-geors-fmow':
+        state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-geors-fmow.pt', map_location="cpu")
+        model = clip.build_model(state_dict) 
+        print('LOADED GEORSCLIP-14+FMOW!')
+        
     return model
 
 
-def build_coop_prototypes(args, model, device):
+def build_coop_prototypes(args, device):
     '''
     Build zero-shot text prototypes by creating prompts and processing them with CLIP
 
@@ -128,7 +190,9 @@ def build_coop_prototypes(args, model, device):
     print(f'{len(classes)} class labels found')
     print(classes)
     
-    n_ctx = 4 # TODO don't hardcode
+    n_ctx = args.NCTX
+    ctp = args.CTP
+    prompt_prefix = "a satellite image of"
     n_cls = len(classes)
     
     #class_names = [c for c in classes if c != 'background']
@@ -145,7 +209,7 @@ def build_coop_prototypes(args, model, device):
     if 'background' in class_names:
         bg_index = class_names.index('background')
     
-    model, tokenizer = load_backbone_and_tokenizer(args.backbone_type)
+    _, tokenizer = load_backbone_and_tokenizer(args.backbone_type)
     
     #print('DEBUG args.ctx_path')
     #print(args.ctx_path)
@@ -156,6 +220,10 @@ def build_coop_prototypes(args, model, device):
     suffix = context['state_dict']['token_suffix']
     
     #name_lens = [len(tokenizer.encode(NEW_CNAMES[name])) for name in class_names]
+    # name_lens = [
+    #     len(tokenizer.encode(NEW_CNAMES[name] if name in NEW_CNAMES else name))
+    #     for name in class_names
+    #     ]
     name_lens = [
         len(tokenizer.encode(NEW_CNAMES[name] if name in NEW_CNAMES else name))
         for name in class_names
@@ -167,28 +235,82 @@ def build_coop_prototypes(args, model, device):
     if ctx.dim() == 2:
         ctx = ctx.unsqueeze(0).expand(n_cls, -1, -1)
 
-    # For middle, unified context 
-    half_n_ctx = n_ctx // 2
-    prompts = []
-    for i in range(n_cls):
-        name_len = name_lens[i]
-        prefix_i = prefix[i : i + 1, :, :]
-        class_i = suffix[i : i + 1, :name_len, :]
-        suffix_i = suffix[i : i + 1, name_len:, :]
-        ctx_i_half1 = ctx[i : i + 1, :half_n_ctx, :]
-        ctx_i_half2 = ctx[i : i + 1, half_n_ctx:, :]
-        prompt = torch.cat(
+    # # For middle, unified context 
+    # half_n_ctx = n_ctx // 2
+    # prompts = []
+    # for i in range(n_cls):
+    #     name_len = name_lens[i]
+    #     prefix_i = prefix[i : i + 1, :, :]
+    #     class_i = suffix[i : i + 1, :name_len, :]
+    #     suffix_i = suffix[i : i + 1, name_len:, :]
+    #     ctx_i_half1 = ctx[i : i + 1, :half_n_ctx, :]
+    #     ctx_i_half2 = ctx[i : i + 1, half_n_ctx:, :]
+    #     prompt = torch.cat(
+    #         [
+    #             prefix_i,     # (1, 1, dim)
+    #             ctx_i_half1,  # (1, n_ctx//2, dim)
+    #             class_i,      # (1, name_len, dim)
+    #             ctx_i_half2,  # (1, n_ctx//2, dim)
+    #             suffix_i,     # (1, *, dim)
+    #         ],
+    #         dim=1,
+    #     )
+    #     prompts.append(prompt)
+    # prompts = torch.cat(prompts, dim=0)
+    
+    print(f'Using CTP={ctp}!')
+    if ctp == "end":
+        prompts = torch.cat(
             [
-                prefix_i,     # (1, 1, dim)
-                ctx_i_half1,  # (1, n_ctx//2, dim)
-                class_i,      # (1, name_len, dim)
-                ctx_i_half2,  # (1, n_ctx//2, dim)
-                suffix_i,     # (1, *, dim)
+                prefix,  # (n_cls, 1, dim)
+                ctx,     # (n_cls, n_ctx, dim)
+                suffix,  # (n_cls, *, dim)
             ],
             dim=1,
         )
-        prompts.append(prompt)
-    prompts = torch.cat(prompts, dim=0)
+
+    elif ctp == "middle":
+        half_n_ctx = n_ctx // 2
+        prompts = []
+        for i in range(n_cls):
+            name_len = name_lens[i]
+            prefix_i = prefix[i : i + 1, :, :]
+            class_i = suffix[i : i + 1, :name_len, :]
+            suffix_i = suffix[i : i + 1, name_len:, :]
+            ctx_i_half1 = ctx[i : i + 1, :half_n_ctx, :]
+            ctx_i_half2 = ctx[i : i + 1, half_n_ctx:, :]
+            prompt = torch.cat(
+                [
+                    prefix_i,     # (1, 1, dim)
+                    ctx_i_half1,  # (1, n_ctx//2, dim)
+                    class_i,      # (1, name_len, dim)
+                    ctx_i_half2,  # (1, n_ctx//2, dim)
+                    suffix_i,     # (1, *, dim)
+                ],
+                dim=1,
+            )
+            prompts.append(prompt)
+        prompts = torch.cat(prompts, dim=0)
+
+    elif ctp == "front":
+        prompts = []
+        for i in range(n_cls):
+            name_len = name_lens[i]
+            prefix_i = prefix[i : i + 1, :, :]
+            class_i = suffix[i : i + 1, :name_len, :]
+            suffix_i = suffix[i : i + 1, name_len:, :]
+            ctx_i = ctx[i : i + 1, :, :]
+            prompt = torch.cat(
+                [
+                    prefix_i,  # (1, 1, dim)
+                    class_i,   # (1, name_len, dim)
+                    ctx_i,     # (1, n_ctx, dim)
+                    suffix_i,  # (1, *, dim)
+                ],
+                dim=1,
+            )
+            prompts.append(prompt)
+        prompts = torch.cat(prompts, dim=0)
     
     # For debugging
     # save_name = f'prompts_{args.backbone_type}.pt'
@@ -199,7 +321,7 @@ def build_coop_prototypes(args, model, device):
     #prompts = prompts.to(device=next(model.parameters()).device, dtype=next(model.parameters()).dtype)
     
     #prompt_prefix = " ".join(["X"] * n_ctx)
-    clip_model = load_clip_to_cpu()
+    clip_model = load_clip_to_cpu(args.backbone_type)
     prompt_prefix = "a satellite image of"
     #prompts_for_token = [prompt_prefix + " " + NEW_CNAMES[name] + "." for name in class_names]
     prompts_for_token = [
@@ -248,91 +370,6 @@ def build_coop_prototypes(args, model, device):
         return class_dict, None
 
 
-# def build_coop_prototypes(args, model, device):
-#     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-#     with open(args.labels_dir, "r") as f:
-#         class_names = [line.strip() for line in f]
-#     print(f'{len(class_names)} class labels found\n{class_names}')
-
-#     n_ctx = 4
-#     n_cls = len(class_names)
-
-#     print('\nCLASS NAMES USED FOR MAPPING')
-#     print(class_names)
-
-#     # Load backbone + tokenizer
-#     model, tokenizer = load_backbone_and_tokenizer(args.backbone_type)
-
-#     # Load saved context (ctx only)
-#     ctx = torch.load(args.ctx_path, map_location='cpu')['state_dict']['ctx']
-#     if ctx.dim() == 2:
-#         ctx = ctx.unsqueeze(0).expand(n_cls, -1, -1)
-
-#     # Load clip model for token embedding
-#     clip_model = load_clip_to_cpu()
-#     dtype = clip_model.dtype
-
-#     # Recompute token_prefix, token_suffix, and name_lens
-#     prompt_prefix = " ".join(["X"] * n_ctx)
-#     prompts = [f"{prompt_prefix} {NEW_CNAMES[name]}." for name in class_names]
-#     tokenized_prompts = torch.cat([clip.tokenize(p) for p in prompts])
-
-#     with torch.no_grad():
-#         embedding = clip_model.token_embedding(tokenized_prompts).type(dtype)
-
-#     token_prefix = embedding[:, :1, :]
-#     token_suffix = embedding[:, 1 + n_ctx :, :]
-#     name_lens = [len(clip.tokenize(NEW_CNAMES[name])[0]) - 2 for name in class_names]
-
-#     print('name_lens')
-#     print(len(name_lens))
-#     print(name_lens)
-
-#     # Reconstruct prompts
-#     half_n_ctx = n_ctx // 2
-#     prompts = []
-#     for i in range(n_cls):
-#         name_len = name_lens[i]
-#         prefix_i = token_prefix[i : i + 1, :, :]
-#         class_i = token_suffix[i : i + 1, :name_len, :]
-#         suffix_i = token_suffix[i : i + 1, name_len:, :]
-#         ctx_i_half1 = ctx[i : i + 1, :half_n_ctx, :]
-#         ctx_i_half2 = ctx[i : i + 1, half_n_ctx:, :]
-#         prompt = torch.cat(
-#             [prefix_i, ctx_i_half1, class_i, ctx_i_half2, suffix_i], dim=1
-#         )
-#         prompts.append(prompt)
-#     prompts = torch.cat(prompts, dim=0)
-
-#     with torch.no_grad():
-#         text_encoder = TextEncoder(clip_model).to(device)
-#         text_feats = text_encoder(prompts.to(device), tokenized_prompts.to(device))
-
-#     # Split class features
-#     class_dict = {
-#         'prototypes': [],
-#         'label_names': []
-#     }
-#     bg_dict = None
-
-#     for i, name in enumerate(class_names):
-#         if name.lower() == "background":
-#             bg_dict = {
-#                 'prototypes': text_feats[i:i+1].cpu(),
-#                 'label_names': ['bg_class_1']
-#             }
-#             print(f'Shape of background prototypes: {bg_dict["prototypes"].shape}')
-#         else:
-#             class_dict['prototypes'].append(text_feats[i].cpu())
-#             class_dict['label_names'].append(name)
-
-#     class_dict['prototypes'] = torch.stack(class_dict['prototypes'])
-#     print(f'Shape of class prototypes: {class_dict["prototypes"].shape}')
-
-#     return class_dict, bg_dict
-
-
 def main(args):
     '''
     Main function to build object and background prototypes.
@@ -347,9 +384,9 @@ def main(args):
     
     # Load model and tokenizer
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model, tokenizer = load_backbone_and_tokenizer(args.backbone_type)
-    model = model.to(device)
-    model.eval()
+    #model, tokenizer = load_backbone_and_tokenizer(args.backbone_type)
+    #model = model.to(device)
+    #model.eval()
     
     # Create save directory if it does not exist
     if not os.path.exists(args.save_dir):
@@ -357,7 +394,7 @@ def main(args):
     
     # Build text prototypes
     #obj_category_dict = build_coop_prototypes(args, model, device)
-    obj_category_dict, bg_category_dict = build_coop_prototypes(args, model, device)
+    obj_category_dict, bg_category_dict = build_coop_prototypes(args, device)
 
     # Save background prototypes if specified
     if bg_category_dict:
@@ -376,8 +413,11 @@ if __name__ == '__main__':
     parser.add_argument('--save_dir', type=str, default='')
     parser.add_argument('--backbone_type', type=str, default='')
     parser.add_argument('--ctx_path', type=str, required=True)
-    parser.add_argument('--labels_dir', type=str, default='')
+    parser.add_argument('--labels_dir', type=str, default='') #make sure order is same as in CoOp!
     parser.add_argument('--store_bg_prototypes', action='store_true', default=False)
+    parser.add_argument('--NCTX', type=int, default=4)
+    parser.add_argument('--CTP', type=str, default='middle')
+    parser.add_argument('--prompt_prefix', type=str, default='a satellite image of')
     args = parser.parse_args()
 
     main(args)

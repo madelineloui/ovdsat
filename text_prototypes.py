@@ -26,6 +26,7 @@ from torchvision import transforms
 from argparse import ArgumentParser
 from utils_dir.backbones_utils import load_backbone_and_tokenizer, extract_backbone_features, get_backbone_params
 from utils_dir.coco_to_seg import coco_to_seg
+from CoOp.clip import clip
 
 NEW_CNAMES = {
     "airplane": "airplane",
@@ -68,6 +69,21 @@ NEW_CNAMES = {
     "KC-1":   "KC-1 aircraft",
     "SU-34":  "SU-34 aircraft",
     "SU-24":  "SU-24 aircraft",
+    "car": "car",
+    "truck": "truck",
+    "airliner": "airliner",
+    "stairtruck": "stair truck",
+    "van": "van",
+    "bus": "bus",
+    "longvehicle": "long vehicle",
+    "boat": "boat",
+    "propeller": "propeller aircraft",
+    "chartered": "chartered aircraft",
+    "pushbacktruck": "pushback truck",
+    "other": "others",
+    "fighter": "fighter aircraft",
+    "trainer": "trainer aircraft",
+    "helicopter": "helicopter",
 }
 
 def build_background_text_prototypes(args, tokenizer, model, device):
@@ -86,12 +102,14 @@ def build_background_text_prototypes(args, tokenizer, model, device):
 
     if any(b in args.backbone_type for b in ('openclip', 'remoteclip', 'georsclip')):
         tokenized_bg_prompts = tokenizer(bg_prompts).to(device)
+        #tokenized_bg_prompts = clip.tokenize(bg_prompts).to(device)
         bg_text_features = model.encode_text(tokenized_bg_prompts).to(device)
     elif 'customclip' in args.backbone_type:
         tokenized_bg_prompts = tokenizer(bg_prompts, return_tensors="pt", padding=True, truncation=True).to(device)
         bg_text_features = model.encode_text(tokenized_bg_prompts).to(device)
     else:
         tokenized_bg_prompts = tokenizer(bg_prompts, return_tensors="pt", padding=True, truncation=True).to(device)
+        #tokenized_bg_prompts = clip.tokenize(bg_prompts).to(device)
         bg_text_features = model.get_text_features(**tokenized_bg_prompts).to(device)
 
     norm_bg_text_features = F.normalize(bg_text_features, p=2, dim=-1)
@@ -137,6 +155,7 @@ def build_text_prototypes(args, tokenizer, model, device):
     # Tokenize and extract text features
     if any(b in args.backbone_type for b in ('openclip', 'remoteclip', 'georsclip')):
         tokenized_prompts = tokenizer(prompts).to(device)
+        #tokenized_prompts = clip.tokenize(prompts).to(device)
         print('tokenized_prompts', tokenized_prompts.shape)
         text_features = model.encode_text(tokenized_prompts).to(device)
         print('text_features', text_features.shape)
@@ -145,6 +164,7 @@ def build_text_prototypes(args, tokenizer, model, device):
         text_features = model.encode_text(tokenized_prompts).to(device)
     else:
         tokenized_prompts = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True).to(device)
+        #tokenized_prompts = clip.tokenize(prompts).to(device)
         text_features = model.get_text_features(**tokenized_prompts).to(device)
         # Pass through projection layer to match image embedding dimension
         # text_features = model.text_projection(text_features) # TODO I think model.get_text_features takes care of this?

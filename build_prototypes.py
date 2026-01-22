@@ -224,6 +224,13 @@ def build_object_prototypes(args, model, init_data, device, patch_size):
             if class_name not in class2images:
                 class2images[class_name] = []
             class2images[class_name.strip()].append((image_file, mask_file)) 
+            
+            # DEBUGGING
+            # img = cv2.imread(image_file)
+            # msk = cv2.imread(mask_file)
+            # if img is None: print("bad img:", image_file)
+            # if msk is None: print("bad mask:", mask_file)
+            
             masked_imgs.append(Image.fromarray(cv2.imread(image_file) * (cv2.imread(mask_file) != 0)))
     
     class2tokens = {}

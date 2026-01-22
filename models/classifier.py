@@ -23,7 +23,7 @@ class OVDBaseClassifier(torch.nn.Module):
         if isinstance(self.scale_factor, int):
             self.scale_factor = [self.scale_factor]
 
-        # Initialize backbone
+        # Initialize backbone TODO not needed since override in backbones_utils.py
         if self.prototype_type == 'text_prototypes' or self.prototype_type == 'coop_prototypes':
             self.backbone, _ = load_backbone_and_tokenizer(backbone_type)  
         else:
@@ -90,8 +90,8 @@ class OVDBaseClassifier(torch.nn.Module):
                     # Normalize
                     dot_product /= (feats_norm * embedding_norm + 1e-8)  # Add epsilon for numerical stability
 
-                if self.logit_scale: # for coop, add the logit scale
-                    dot_product *= self.logit_scale.exp()
+                # if self.logit_scale: # for coop, add the logit scale
+                #     dot_product *= self.logit_scale.exp()
                     
             else:
                 feat_norm = (feats / feats.norm(dim=-1, keepdim=True))
@@ -104,83 +104,22 @@ class OVDBaseClassifier(torch.nn.Module):
                     #SIMILARITY
                     dot_product = feat_norm @ embed_norm.t()
                     dot_product = dot_product.transpose(1, 2)
+                    # logit_scale = torch.tensor(4.6028)
+                    # dot_product = logit_scale.exp() * feat_norm @ embed_norm.t()
+                    # dot_product = dot_product.transpose(1, 2)
+                    # dot_product = dot_product.softmax(dim=1)
                     
                 elif self.prototype_type == 'coop_prototypes':
                     #print('-> coop_prototype (softmax)')
                     #SOFTMAX
-                    logit_scale = torch.tensor(4.6028)
-                    dot_product = logit_scale.exp() * feat_norm @ embed_norm.t()
+                    # logit_scale = torch.tensor(4.6028)
+                    # dot_product = logit_scale.exp() * feat_norm @ embed_norm.t()
+                    # dot_product = dot_product.transpose(1, 2)
+                    # dot_product = dot_product.softmax(dim=1)
+                    dot_product = feat_norm @ embed_norm.t()
                     dot_product = dot_product.transpose(1, 2)
-                    dot_product = dot_product.softmax(dim=1)
                 else:
                     print(f'ERROR: invalid prototype_type: {self.prototype_type}!')
-
-#             # print('DEBUG')
-#             # print('feats', feats.shape)
-#             # print('embedding_batch', embedding_batch.shape)
-
-#                 ### Modified to exactly match CLIP cosine similarity in CoOp
-
-#                 feat_norm = (feats / feats.norm(dim=-1, keepdim=True))
-#                 embed_norm = embedding_batch / embedding_batch.norm(dim=-1, keepdim=True)
-
-#                 # print(feat_norm.dtype)
-#                 # print(embed_norm.dtype)
-
-#                 feat_norm = feat_norm.float()
-#                 embed_norm = embed_norm.float()
-
-#                 # print(feat_norm.dtype)
-#                 # print(embed_norm.dtype)
-
-# #                 print('\ndebug text embedding norm mean')
-# #                 print(embed_norm.shape)
-# #                 print(embed_norm.mean())
-# #                 print(embed_norm.std())
-# #                 print(embed_norm[0,:10])
-
-# #                 print('\ndebug image embedding norm mean')
-# #                 print(feat_norm.shape)
-# #                 print(feat_norm.mean())
-# #                 print(feat_norm.std())
-# #                 print(feat_norm[0,0,:10])
-
-#                 # SIMILARITY
-#                 # dot_product = feat_norm @ embed_norm.t()
-#                 # dot_product = dot_product.transpose(1, 2)
-
-#                 # print('\nDEBUG sim')
-#                 # sim = dot_product
-#                 # print(sim.shape)
-#                 # print(sim.mean())
-#                 # print(sim.std())
-#                 # print(sim[0,:,0])
-
-#                 # logit_scale = torch.tensor(4.6028)
-#                 # logits = logit_scale.exp() * dot_product
-#                 # print('\nlogits')
-#                 # print(logits.shape)
-#                 # print(logits.mean())
-#                 # print(logits.std())
-#                 # print(logits[:,:,0])
-
-#                 #SOFTMAX
-#                 logit_scale = torch.tensor(4.6028)
-#                 dot_product = logit_scale.exp() * feat_norm @ embed_norm.t()
-#                 dot_product = dot_product.transpose(1, 2)
-#                 dot_product = dot_product.softmax(dim=1)
-#                 # print('\nDOT PRODUCT MIN MAX AFTER SOFTMAX')
-#                 # print(dot_product.min())
-#                 # print(dot_product.max())
-
-#                 # TODO is this matching coop? 4.6028
-#                 # logit_scale = getattr(self.backbone, 'logit_scale', None)
-#                 # print('logit scale debug')
-#                 # print(logit_scale)
-#                 # if logit_scale is not None:
-#                 #     dot_product *= logit_scale.exp()
-
-                
                 
             # Append the similarity scores for this batch to the list
             cosim_list.append(dot_product)
