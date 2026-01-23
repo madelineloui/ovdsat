@@ -197,7 +197,7 @@ def build_background_prototypes(args, model, device, patch_size):
     return category_dict
 
 
-def build_object_prototypes(args, model, init_data, device, patch_size):
+def build_object_prototypes(args, model, init_data, device, patch_size, crop_path=None):
     '''
     Build object prototypes by extracting the features containing the objects and averaging them for each class, separately.
 
@@ -212,51 +212,89 @@ def build_object_prototypes(args, model, init_data, device, patch_size):
     class2images = {}
     classes = []
     masked_imgs = []
-    for f in glob(osp.join(init_data, '**/*'), recursive=True):
-        if osp.isfile(f) and 'mask' not in f:
-            image_file = f
-            class_name = osp.basename(osp.dirname(f))
-            mask_file = osp.splitext(f)[0] + '.mask.jpg'
-            if osp.splitext(args.annotations_file)[0] in mask_file:
-                continue
-            
-            classes = classes + [class_name] if class_name not in classes else classes
-            if class_name not in class2images:
-                class2images[class_name] = []
-            class2images[class_name.strip()].append((image_file, mask_file)) 
-            
-            # DEBUGGING
-            # img = cv2.imread(image_file)
-            # msk = cv2.imread(mask_file)
-            # if img is None: print("bad img:", image_file)
-            # if msk is None: print("bad mask:", mask_file)
-            
-            masked_imgs.append(Image.fromarray(cv2.imread(image_file) * (cv2.imread(mask_file) != 0)))
     
-    class2tokens = {}
-    for cls, images in tqdm(class2images.items()):
-        class2tokens[cls] = []
-        for image_file, mask_file in images:
-            # Read image and mask
-            image = Image.open(image_file)
-            mask = Image.open(mask_file)
-            image, mask = preprocess(image, mask, backbone_type=args.backbone_type, target_size=args.target_size, patch_size=patch_size)
-            mask = torch.as_tensor(np.array(mask) / 255).to(device)
-            
-            # Extract features and reshape to 2D image
-            features = extract_backbone_features(image.to(device), model, args.backbone_type, scale_factor=args.scale_factor)
-            #print('\nFEATURES:', features.shape, '\n')
-            _, K, D = features.shape
-            p_w = p_h = int(K**0.5)
-            features = features.reshape(p_h, p_w, -1).permute(2, 0, 1)
+    if crop_path:
+        for f in glob(osp.join(crop_path, '**/*'), recursive=True):
+            if osp.isfile(f):
+                image_file = f
+                class_name = osp.basename(osp.dirname(f))
+                classes = classes + [class_name] if class_name not in classes else classes
+                if class_name not in class2images:
+                    class2images[class_name] = []
+                class2images[class_name.strip()].append(image_file)
+        
+        class2tokens = {}
+        for cls, images in tqdm(class2images.items()):
+            class2tokens[cls] = []
+            for image_file in images:
+                # Read image and mask
+                #print(image_file)
+                image = Image.open(image_file)
+                image, _ = preprocess(image, None, backbone_type=args.backbone_type, target_size=(224,244), patch_size=patch_size)
 
-            # If the mask is empty, skip the image
-            if mask.sum() <= 0.5:
-                continue
+                # Extract features and reshape to 2D image
+                features = extract_backbone_features(image.to(device), model, args.backbone_type, scale_factor=args.scale_factor)
+                #print('\nFEATURES:', features.shape, '\n')
+                _, K, D = features.shape
+                p_w = p_h = int(K**0.5)
+                features = features.reshape(p_h, p_w, -1).permute(2, 0, 1)
+                # print('DEBUG features')
+                # print(features.shape)
 
-            # Average the features of the masked patches
-            avg_patch_token = (mask.unsqueeze(0) * features).flatten(1).sum(1) / mask.sum()
-            class2tokens[cls].append(avg_patch_token)
+                # Average the features of the masked patches
+                avg_patch_token = features.mean(dim=(1, 2))
+                # print('DEBUG avg_patch_token')
+                # print(avg_patch_token.shape)
+                class2tokens[cls].append(avg_patch_token)
+                
+    else:
+        for f in glob(osp.join(init_data, '**/*'), recursive=True):
+            if osp.isfile(f) and 'mask' not in f:
+                image_file = f
+                class_name = osp.basename(osp.dirname(f))
+                mask_file = osp.splitext(f)[0] + '.mask.jpg'
+                if osp.splitext(args.annotations_file)[0] in mask_file:
+                    continue
+
+                classes = classes + [class_name] if class_name not in classes else classes
+                if class_name not in class2images:
+                    class2images[class_name] = []
+                class2images[class_name.strip()].append((image_file, mask_file)) 
+
+                # DEBUGGING
+                # img = cv2.imread(image_file)
+                # msk = cv2.imread(mask_file)
+                # if img is None: print("bad img:", image_file)
+                # if msk is None: print("bad mask:", mask_file)
+
+                masked_imgs.append(Image.fromarray(cv2.imread(image_file) * (cv2.imread(mask_file) != 0)))
+
+        class2tokens = {}
+        for cls, images in tqdm(class2images.items()):
+            class2tokens[cls] = []
+            for image_file, mask_file in images:
+                # Read image and mask
+                image = Image.open(image_file)
+                mask = Image.open(mask_file)
+                image, mask = preprocess(image, mask, backbone_type=args.backbone_type, target_size=args.target_size, patch_size=patch_size)
+                mask = torch.as_tensor(np.array(mask) / 255).to(device)
+
+                # Extract features and reshape to 2D image
+                features = extract_backbone_features(image.to(device), model, args.backbone_type, scale_factor=args.scale_factor)
+                #print('\nFEATURES:', features.shape, '\n')
+                _, K, D = features.shape
+                p_w = p_h = int(K**0.5)
+                features = features.reshape(p_h, p_w, -1).permute(2, 0, 1)
+
+                # If the mask is empty, skip the image
+                if mask.sum() <= 0.5:
+                    continue
+
+                # Average the features of the masked patches
+                avg_patch_token = (mask.unsqueeze(0) * features).flatten(1).sum(1) / mask.sum()
+                # print('DEBUG avg_patch_token')
+                # print(avg_patch_token.shape)
+                class2tokens[cls].append(avg_patch_token)
     
     # Average the features of all objects in each class
     for cls in class2tokens:
@@ -284,8 +322,6 @@ def main(args):
         args (argparse.Namespace): Input arguments
     '''
 
-    
-    
     # Convert COCO annotations to segmentation masks
     init_data_path = os.path.join('data', 'init_data', args.save_dir.split('/')[-1])
     print(args.annotations_file)
@@ -302,7 +338,11 @@ def main(args):
     patch_size, _ = get_backbone_params(args.backbone_type)
 
     # Build object prototypes
-    obj_category_dict = build_object_prototypes(args, model, init_data_path, device, patch_size)
+    if args.crop_path:
+        print(f'USING CROP PATH: {args.crop_path}')
+        obj_category_dict = build_object_prototypes(args, model, init_data_path, device, patch_size, args.crop_path) # override with crops
+    else:
+        obj_category_dict = build_object_prototypes(args, model, init_data_path, device, patch_size) # normal
     
     # Create save directory if it does not exist
     if not os.path.exists(args.save_dir):
@@ -333,6 +373,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_b', type=int, default=10, help='Number of background samples to extract per image')
     parser.add_argument('--k', type=int, default=200, help='Number of background prototypes (clusters for k-means)')
     parser.add_argument('--store_bg_prototypes', action='store_true', default=False)
+    parser.add_argument('--crop_path', type=str)
     args = parser.parse_args()
 
     main(args)
