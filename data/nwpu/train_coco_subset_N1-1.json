@@ -1,0 +1,328 @@
+{
+    "images": [
+        {
+            "id": 23,
+            "folder": "/home/gridsan/manderson/ovdsat/data/nwpu/positive_image_set",
+            "file_name": "024.jpg",
+            "path": null,
+            "width": 1200,
+            "height": 425,
+            "depth": null
+        },
+        {
+            "id": 409,
+            "folder": "/home/gridsan/manderson/ovdsat/data/nwpu/positive_image_set",
+            "file_name": "410.jpg",
+            "path": null,
+            "width": 949,
+            "height": 617,
+            "depth": null
+        },
+        {
+            "id": 289,
+            "folder": "/home/gridsan/manderson/ovdsat/data/nwpu/positive_image_set",
+            "file_name": "290.jpg",
+            "path": null,
+            "width": 978,
+            "height": 760,
+            "depth": null
+        },
+        {
+            "id": 314,
+            "folder": "/home/gridsan/manderson/ovdsat/data/nwpu/positive_image_set",
+            "file_name": "315.jpg",
+            "path": null,
+            "width": 1689,
+            "height": 1026,
+            "depth": null
+        },
+        {
+            "id": 340,
+            "folder": "/home/gridsan/manderson/ovdsat/data/nwpu/positive_image_set",
+            "file_name": "341.jpg",
+            "path": null,
+            "width": 852,
+            "height": 604,
+            "depth": null
+        },
+        {
+            "id": 344,
+            "folder": "/home/gridsan/manderson/ovdsat/data/nwpu/positive_image_set",
+            "file_name": "345.jpg",
+            "path": null,
+            "width": 948,
+            "height": 580,
+            "depth": null
+        },
+        {
+            "id": 158,
+            "folder": "/home/gridsan/manderson/ovdsat/data/nwpu/positive_image_set",
+            "file_name": "159.jpg",
+            "path": null,
+            "width": 828,
+            "height": 431,
+            "depth": null
+        },
+        {
+            "id": 225,
+            "folder": "/home/gridsan/manderson/ovdsat/data/nwpu/positive_image_set",
+            "file_name": "226.jpg",
+            "path": null,
+            "width": 1049,
+            "height": 607,
+            "depth": null
+        },
+        {
+            "id": 532,
+            "folder": "/home/gridsan/manderson/ovdsat/data/nwpu/positive_image_set",
+            "file_name": "533.jpg",
+            "path": null,
+            "width": 1016,
+            "height": 623,
+            "depth": null
+        },
+        {
+            "id": 537,
+            "folder": "/home/gridsan/manderson/ovdsat/data/nwpu/positive_image_set",
+            "file_name": "538.jpg",
+            "path": null,
+            "width": 730,
+            "height": 599,
+            "depth": null
+        }
+    ],
+    "annotations": [
+        {
+            "image_id": 23,
+            "id": 0,
+            "segmented": null,
+            "bbox": [
+                1106,
+                211,
+                51,
+                66
+            ],
+            "area": 3366,
+            "segmentation": null,
+            "iscrowd": 0,
+            "pose": null,
+            "truncated": null,
+            "category_id": 0,
+            "difficult": null
+        },
+        {
+            "image_id": 409,
+            "id": 1,
+            "segmented": null,
+            "bbox": [
+                518,
+                533,
+                68,
+                66
+            ],
+            "area": 4488,
+            "segmentation": null,
+            "iscrowd": 0,
+            "pose": null,
+            "truncated": null,
+            "category_id": 9,
+            "difficult": null
+        },
+        {
+            "image_id": 289,
+            "id": 2,
+            "segmented": null,
+            "bbox": [
+                231,
+                256,
+                37,
+                70
+            ],
+            "area": 2590,
+            "segmentation": null,
+            "iscrowd": 0,
+            "pose": null,
+            "truncated": null,
+            "category_id": 1,
+            "difficult": null
+        },
+        {
+            "image_id": 314,
+            "id": 3,
+            "segmented": null,
+            "bbox": [
+                1201,
+                556,
+                72,
+                69
+            ],
+            "area": 4968,
+            "segmentation": null,
+            "iscrowd": 0,
+            "pose": null,
+            "truncated": null,
+            "category_id": 2,
+            "difficult": null
+        },
+        {
+            "image_id": 340,
+            "id": 4,
+            "segmented": null,
+            "bbox": [
+                99,
+                193,
+                145,
+                112
+            ],
+            "area": 16240,
+            "segmentation": null,
+            "iscrowd": 0,
+            "pose": null,
+            "truncated": null,
+            "category_id": 3,
+            "difficult": null
+        },
+        {
+            "image_id": 344,
+            "id": 5,
+            "segmented": null,
+            "bbox": [
+                175,
+                218,
+                58,
+                75
+            ],
+            "area": 4350,
+            "segmentation": null,
+            "iscrowd": 0,
+            "pose": null,
+            "truncated": null,
+            "category_id": 4,
+            "difficult": null
+        },
+        {
+            "image_id": 158,
+            "id": 6,
+            "segmented": null,
+            "bbox": [
+                688,
+                309,
+                98,
+                62
+            ],
+            "area": 6076,
+            "segmentation": null,
+            "iscrowd": 0,
+            "pose": null,
+            "truncated": null,
+            "category_id": 5,
+            "difficult": null
+        },
+        {
+            "image_id": 225,
+            "id": 7,
+            "segmented": null,
+            "bbox": [
+                283,
+                207,
+                221,
+                281
+            ],
+            "area": 62101,
+            "segmentation": null,
+            "iscrowd": 0,
+            "pose": null,
+            "truncated": null,
+            "category_id": 6,
+            "difficult": null
+        },
+        {
+            "image_id": 532,
+            "id": 8,
+            "segmented": null,
+            "bbox": [
+                640,
+                43,
+                54,
+                126
+            ],
+            "area": 6804,
+            "segmentation": null,
+            "iscrowd": 0,
+            "pose": null,
+            "truncated": null,
+            "category_id": 7,
+            "difficult": null
+        },
+        {
+            "image_id": 537,
+            "id": 9,
+            "segmented": null,
+            "bbox": [
+                194,
+                49,
+                197,
+                66
+            ],
+            "area": 13002,
+            "segmentation": null,
+            "iscrowd": 0,
+            "pose": null,
+            "truncated": null,
+            "category_id": 8,
+            "difficult": null
+        }
+    ],
+    "categories": [
+        {
+            "id": 0,
+            "name": "airplane",
+            "supercategory": null
+        },
+        {
+            "id": 1,
+            "name": "ship",
+            "supercategory": null
+        },
+        {
+            "id": 2,
+            "name": "storage tank",
+            "supercategory": null
+        },
+        {
+            "id": 3,
+            "name": "baseball diamond",
+            "supercategory": null
+        },
+        {
+            "id": 4,
+            "name": "tennis court",
+            "supercategory": null
+        },
+        {
+            "id": 5,
+            "name": "basketball court",
+            "supercategory": null
+        },
+        {
+            "id": 6,
+            "name": "ground track field",
+            "supercategory": null
+        },
+        {
+            "id": 7,
+            "name": "harbor",
+            "supercategory": null
+        },
+        {
+            "id": 8,
+            "name": "bridge",
+            "supercategory": null
+        },
+        {
+            "id": 9,
+            "name": "vehicle",
+            "supercategory": null
+        }
+    ]
+}

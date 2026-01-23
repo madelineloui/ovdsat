@@ -1,0 +1,488 @@
+{
+    "images": [
+        {
+            "id": 838,
+            "folder": "/home/gridsan/manderson/ovdsat/data/simd/JPEGImages",
+            "file_name": "0505.jpg",
+            "path": null,
+            "width": 1024,
+            "height": 768,
+            "depth": 3
+        },
+        {
+            "id": 2087,
+            "folder": "/home/gridsan/manderson/ovdsat/data/simd/JPEGImages",
+            "file_name": "1289.jpg",
+            "path": null,
+            "width": 1024,
+            "height": 768,
+            "depth": 3
+        },
+        {
+            "id": 415,
+            "folder": "/home/gridsan/manderson/ovdsat/data/simd/JPEGImages",
+            "file_name": "1075.jpg",
+            "path": null,
+            "width": 1024,
+            "height": 768,
+            "depth": 3
+        },
+        {
+            "id": 2819,
+            "folder": "/home/gridsan/manderson/ovdsat/data/simd/JPEGImages",
+            "file_name": "3420.jpg",
+            "path": null,
+            "width": 1024,
+            "height": 768,
+            "depth": 3
+        },
+        {
+            "id": 1546,
+            "folder": "/home/gridsan/manderson/ovdsat/data/simd/JPEGImages",
+            "file_name": "0765.jpg",
+            "path": null,
+            "width": 1024,
+            "height": 768,
+            "depth": 3
+        },
+        {
+            "id": 1929,
+            "folder": "/home/gridsan/manderson/ovdsat/data/simd/JPEGImages",
+            "file_name": "3825.jpg",
+            "path": null,
+            "width": 1024,
+            "height": 768,
+            "depth": 3
+        },
+        {
+            "id": 2239,
+            "folder": "/home/gridsan/manderson/ovdsat/data/simd/JPEGImages",
+            "file_name": "2643.jpg",
+            "path": null,
+            "width": 1024,
+            "height": 768,
+            "depth": 3
+        },
+        {
+            "id": 4172,
+            "folder": "/home/gridsan/manderson/ovdsat/data/simd/JPEGImages",
+            "file_name": "0114.jpg",
+            "path": null,
+            "width": 1024,
+            "height": 768,
+            "depth": 3
+        },
+        {
+            "id": 4389,
+            "folder": "/home/gridsan/manderson/ovdsat/data/simd/JPEGImages",
+            "file_name": "0026.jpg",
+            "path": null,
+            "width": 1024,
+            "height": 768,
+            "depth": 3
+        },
+        {
+            "id": 1501,
+            "folder": "/home/gridsan/manderson/ovdsat/data/simd/JPEGImages",
+            "file_name": "0743.jpg",
+            "path": null,
+            "width": 1024,
+            "height": 768,
+            "depth": 3
+        },
+        {
+            "id": 4575,
+            "folder": "/home/gridsan/manderson/ovdsat/data/simd/JPEGImages",
+            "file_name": "1120.jpg",
+            "path": null,
+            "width": 1024,
+            "height": 768,
+            "depth": 3
+        },
+        {
+            "id": 2830,
+            "folder": "/home/gridsan/manderson/ovdsat/data/simd/JPEGImages",
+            "file_name": "2600.jpg",
+            "path": null,
+            "width": 1024,
+            "height": 768,
+            "depth": 3
+        },
+        {
+            "id": 2053,
+            "folder": "/home/gridsan/manderson/ovdsat/data/simd/JPEGImages",
+            "file_name": "2983.jpg",
+            "path": null,
+            "width": 1024,
+            "height": 768,
+            "depth": 3
+        },
+        {
+            "id": 2631,
+            "folder": "/home/gridsan/manderson/ovdsat/data/simd/JPEGImages",
+            "file_name": "0099.jpg",
+            "path": null,
+            "width": 1024,
+            "height": 768,
+            "depth": 3
+        },
+        {
+            "id": 3213,
+            "folder": "/home/gridsan/manderson/ovdsat/data/simd/JPEGImages",
+            "file_name": "3171.jpg",
+            "path": null,
+            "width": 1024,
+            "height": 768,
+            "depth": 3
+        }
+    ],
+    "annotations": [
+        {
+            "image_id": 838,
+            "id": 0,
+            "segmented": "0",
+            "bbox": [
+                499.0,
+                562.0,
+                25.0,
+                38.0
+            ],
+            "area": 950.0,
+            "segmentation": null,
+            "iscrowd": 0.0,
+            "pose": "Unspecified",
+            "truncated": null,
+            "category_id": 0,
+            "difficult": null
+        },
+        {
+            "image_id": 2087,
+            "id": 1,
+            "segmented": "0",
+            "bbox": [
+                691.0,
+                356.0,
+                48.0,
+                88.0
+            ],
+            "area": 4224.0,
+            "segmentation": null,
+            "iscrowd": 0.0,
+            "pose": "Unspecified",
+            "truncated": null,
+            "category_id": 1,
+            "difficult": null
+        },
+        {
+            "image_id": 415,
+            "id": 2,
+            "segmented": "0",
+            "bbox": [
+                227.0,
+                517.0,
+                71.0,
+                74.0
+            ],
+            "area": 5254.0,
+            "segmentation": null,
+            "iscrowd": 0.0,
+            "pose": "Unspecified",
+            "truncated": null,
+            "category_id": 10,
+            "difficult": null
+        },
+        {
+            "image_id": 2819,
+            "id": 3,
+            "segmented": "0",
+            "bbox": [
+                216.0,
+                165.0,
+                40.0,
+                77.0
+            ],
+            "area": 3080.0,
+            "segmentation": null,
+            "iscrowd": 0.0,
+            "pose": "Unspecified",
+            "truncated": null,
+            "category_id": 11,
+            "difficult": null
+        },
+        {
+            "image_id": 1546,
+            "id": 4,
+            "segmented": "0",
+            "bbox": [
+                694.0,
+                56.0,
+                211.0,
+                288.0
+            ],
+            "area": 60768.0,
+            "segmentation": null,
+            "iscrowd": 0.0,
+            "pose": "Unspecified",
+            "truncated": null,
+            "category_id": 12,
+            "difficult": null
+        },
+        {
+            "image_id": 1929,
+            "id": 5,
+            "segmented": "0",
+            "bbox": [
+                440.0,
+                210.0,
+                232.0,
+                280.0
+            ],
+            "area": 64960.0,
+            "segmentation": null,
+            "iscrowd": 0.0,
+            "pose": "Unspecified",
+            "truncated": null,
+            "category_id": 13,
+            "difficult": null
+        },
+        {
+            "image_id": 2239,
+            "id": 6,
+            "segmented": "0",
+            "bbox": [
+                103.0,
+                180.0,
+                251.0,
+                242.0
+            ],
+            "area": 60742.0,
+            "segmentation": null,
+            "iscrowd": 0.0,
+            "pose": "Unspecified",
+            "truncated": null,
+            "category_id": 14,
+            "difficult": null
+        },
+        {
+            "image_id": 4172,
+            "id": 7,
+            "segmented": "0",
+            "bbox": [
+                282.0,
+                155.0,
+                104.0,
+                90.0
+            ],
+            "area": 9360.0,
+            "segmentation": null,
+            "iscrowd": 0.0,
+            "pose": "Unspecified",
+            "truncated": null,
+            "category_id": 2,
+            "difficult": null
+        },
+        {
+            "image_id": 4389,
+            "id": 8,
+            "segmented": "0",
+            "bbox": [
+                379.0,
+                384.0,
+                33.0,
+                24.0
+            ],
+            "area": 792.0,
+            "segmentation": null,
+            "iscrowd": 0.0,
+            "pose": "Unspecified",
+            "truncated": null,
+            "category_id": 3,
+            "difficult": null
+        },
+        {
+            "image_id": 1501,
+            "id": 9,
+            "segmented": "0",
+            "bbox": [
+                974.0,
+                675.0,
+                49.0,
+                86.0
+            ],
+            "area": 4214.0,
+            "segmentation": null,
+            "iscrowd": 0.0,
+            "pose": "Unspecified",
+            "truncated": null,
+            "category_id": 4,
+            "difficult": null
+        },
+        {
+            "image_id": 4575,
+            "id": 10,
+            "segmented": "0",
+            "bbox": [
+                111.0,
+                151.0,
+                113.0,
+                92.0
+            ],
+            "area": 10396.0,
+            "segmentation": null,
+            "iscrowd": 0.0,
+            "pose": "Unspecified",
+            "truncated": null,
+            "category_id": 5,
+            "difficult": null
+        },
+        {
+            "image_id": 2830,
+            "id": 11,
+            "segmented": "0",
+            "bbox": [
+                579.0,
+                122.0,
+                227.0,
+                235.0
+            ],
+            "area": 53345.0,
+            "segmentation": null,
+            "iscrowd": 0.0,
+            "pose": "Unspecified",
+            "truncated": null,
+            "category_id": 6,
+            "difficult": null
+        },
+        {
+            "image_id": 2053,
+            "id": 12,
+            "segmented": "0",
+            "bbox": [
+                92.0,
+                149.0,
+                68.0,
+                91.0
+            ],
+            "area": 6188.0,
+            "segmentation": null,
+            "iscrowd": 0.0,
+            "pose": "Unspecified",
+            "truncated": null,
+            "category_id": 7,
+            "difficult": null
+        },
+        {
+            "image_id": 2631,
+            "id": 13,
+            "segmented": "0",
+            "bbox": [
+                314.0,
+                153.0,
+                180.0,
+                145.0
+            ],
+            "area": 26100.0,
+            "segmentation": null,
+            "iscrowd": 0.0,
+            "pose": "Unspecified",
+            "truncated": null,
+            "category_id": 8,
+            "difficult": null
+        },
+        {
+            "image_id": 3213,
+            "id": 14,
+            "segmented": "0",
+            "bbox": [
+                170.0,
+                164.0,
+                618.0,
+                467.0
+            ],
+            "area": 288606.0,
+            "segmentation": null,
+            "iscrowd": 0.0,
+            "pose": "Unspecified",
+            "truncated": null,
+            "category_id": 9,
+            "difficult": null
+        }
+    ],
+    "categories": [
+        {
+            "id": 0,
+            "name": "car",
+            "supercategory": null
+        },
+        {
+            "id": 1,
+            "name": "truck",
+            "supercategory": null
+        },
+        {
+            "id": 2,
+            "name": "airliner",
+            "supercategory": null
+        },
+        {
+            "id": 3,
+            "name": "stairtruck",
+            "supercategory": null
+        },
+        {
+            "id": 4,
+            "name": "van",
+            "supercategory": null
+        },
+        {
+            "id": 5,
+            "name": "bus",
+            "supercategory": null
+        },
+        {
+            "id": 6,
+            "name": "longvehicle",
+            "supercategory": null
+        },
+        {
+            "id": 7,
+            "name": "boat",
+            "supercategory": null
+        },
+        {
+            "id": 8,
+            "name": "propeller",
+            "supercategory": null
+        },
+        {
+            "id": 9,
+            "name": "chartered",
+            "supercategory": null
+        },
+        {
+            "id": 10,
+            "name": "pushbacktruck",
+            "supercategory": null
+        },
+        {
+            "id": 11,
+            "name": "other",
+            "supercategory": null
+        },
+        {
+            "id": 12,
+            "name": "fighter",
+            "supercategory": null
+        },
+        {
+            "id": 13,
+            "name": "trainer",
+            "supercategory": null
+        },
+        {
+            "id": 14,
+            "name": "helicopter",
+            "supercategory": null
+        }
+    ]
+}
