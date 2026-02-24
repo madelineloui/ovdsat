@@ -49,6 +49,24 @@ NEW_CNAMES = {
     "trainstation": "train station",
     "vehicle": "vehicle",
     "windmill": "windmill",
+    "car": "car",
+    "truck": "truck",
+    "airliner": "airliner",
+    "stairtruck": "stair truck",
+    "van": "van",
+    "bus": "bus",
+    "longvehicle": "long vehicle",
+    "boat": "boat",
+    "propeller": "propeller aircraft",
+    "chartered": "chartered aircraft",
+    "pushbacktruck": "pushback truck",
+    "other": "others",
+    "fighter": "fighter aircraft",
+    "trainer": "trainer aircraft",
+    "helicopter": "helicopter",
+}
+
+'''
     "SU-35":  "SU-35 aircraft",
     "C-130":  "C-130 aircraft",
     "C-17":   "C-17 aircraft",
@@ -69,22 +87,7 @@ NEW_CNAMES = {
     "KC-1":   "KC-1 aircraft",
     "SU-34":  "SU-34 aircraft",
     "SU-24":  "SU-24 aircraft",
-    "car": "car",
-    "truck": "truck",
-    "airliner": "airliner",
-    "stairtruck": "stair truck",
-    "van": "van",
-    "bus": "bus",
-    "longvehicle": "long vehicle",
-    "boat": "boat",
-    "propeller": "propeller aircraft",
-    "chartered": "chartered aircraft",
-    "pushbacktruck": "pushback truck",
-    "other": "others",
-    "fighter": "fighter aircraft",
-    "trainer": "trainer aircraft",
-    "helicopter": "helicopter",
-}
+'''
 
 def build_background_text_prototypes(args, tokenizer, model, device):
     '''

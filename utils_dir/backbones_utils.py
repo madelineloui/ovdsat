@@ -485,13 +485,11 @@ def extract_clip_features(images, model, backbone_type, tile_size=224, prototype
                 tile = images[:, :, start_i:end_i, start_j:end_j]
                 
                 if prototype_type == 'text_prototypes' or prototype_type == 'coop_prototypes':
-                #if prototype_type == 'coop_prototypes':
-                    #print('DEBUG 4')
-                    if backbone_type == 'openclip-14':
-                        dtype = dtype = next(model.visual.parameters()).dtype
-                        image_features = model.visual(tile.to(dtype)).unsqueeze(1)
-                    else:
-                        image_features = model.visual(tile.type(model.dtype)).unsqueeze(1)
+                    # if backbone_type == 'openclip-14':
+                    #     dtype = dtype = next(model.visual.parameters()).dtype
+                    #     image_features = model.visual(tile.to(dtype)).unsqueeze(1)
+                    # else:
+                    image_features = model.visual(tile.type(model.dtype)).unsqueeze(1)
                     # print('\nimage features before norm')
                     # print(image_features.shape)
                     # print(image_features.mean())
@@ -500,10 +498,7 @@ def extract_clip_features(images, model, backbone_type, tile_size=224, prototype
                     #image_features = model.visual(tile).unsqueeze(1)
                 else:
                     # Extract CLIP's features before token pooling
-                    #if backbone_type == 'clip-32' or backbone_type == 'clip-14':
-                    if 'georsclip' in backbone_type or 'remoteclip' in backbone_type or 'openclip' in backbone_type or 'customclip' in backbone_type:
-                        image_features = model(tile)[-1]
-                    elif 'clip-32' in backbone_type or 'clip-14' in backbone_type:
+                    if backbone_type == 'clip-32' or backbone_type == 'clip-14':
                         image_features = model(tile).last_hidden_state[:, 1:]
                     else:
                         image_features = model(tile)[-1]

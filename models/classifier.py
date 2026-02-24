@@ -111,13 +111,13 @@ class OVDBaseClassifier(torch.nn.Module):
                     
                 elif self.prototype_type == 'coop_prototypes':
                     #print('-> coop_prototype (softmax)')
-                    #SOFTMAX
-                    # logit_scale = torch.tensor(4.6028)
-                    # dot_product = logit_scale.exp() * feat_norm @ embed_norm.t()
-                    # dot_product = dot_product.transpose(1, 2)
-                    # dot_product = dot_product.softmax(dim=1)
-                    dot_product = feat_norm @ embed_norm.t()
+                    # SOFTMAX
+                    logit_scale = torch.tensor(4.6028)
+                    dot_product = logit_scale.exp() * feat_norm @ embed_norm.t()
                     dot_product = dot_product.transpose(1, 2)
+                    dot_product = dot_product.softmax(dim=1)
+                    # dot_product = feat_norm @ embed_norm.t()
+                    # dot_product = dot_product.transpose(1, 2)
                 else:
                     print(f'ERROR: invalid prototype_type: {self.prototype_type}!')
                 
