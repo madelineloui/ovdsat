@@ -1,9 +1,10 @@
 import cv2
 import torch
 import torchvision.transforms as T
-from models.classifier import OVDBoxClassifier, OVDMaskClassifier
+import torchvision.transforms.functional as TF
+from models.classifier import OVDBoxClassifier, OVDMaskClassifier, OVDBoxCropClassifier
 from utils_dir.rpn_utils import get_box_RPN
-from utils_dir.processing_utils import filter_boxes
+from utils_dir.processing_utils import filter_boxes, filter_boxes_crop 
 from utils_dir.nms import non_max_suppression
 from utils_dir.backbones_utils import prepare_image_for_backbone
 from models.rpn.obb_rpn import OBBRPN
@@ -22,7 +23,7 @@ class OVDDetector(torch.nn.Module):
                 rpn_config='configs/FasterRCNN_FPN_DOTA_config.yaml',
                 rpn_checkpoint='weights/FasterRCNN_FPN_DOTA_final_model.pth',
                 classification='box',    # Possible values: 'box', 'obb', 'mask'
-                prototype_type='init_prototypes', #text=False
+                prototype_type='init_prototypes',
                 ):
         super().__init__()
         self.scale_factor = scale_factor
@@ -32,7 +33,6 @@ class OVDDetector(torch.nn.Module):
         self.class_names = prototypes['label_names']
         self.num_classes = len(self.class_names)
         self.backbone_type = backbone_type  
-        #self.text = text
         self.prototype_type = prototype_type
         
         print(prototype_type)
@@ -57,8 +57,14 @@ class OVDDetector(torch.nn.Module):
             raise NotImplementedError('Mask RPN not implemented yet. Should use SAM to generate proposals.')
         
         # Initialize Classifier
-        classifier = OVDBoxClassifier if classification == 'box' else OVDMaskClassifier
-        self.classifier = classifier(all_prototypes, prototypes['label_names'], backbone_type, target_size, scale_factor, min_box_size, ignore_index, prototype_type = prototype_type) #text=text)
+        if classification == 'mask':
+            classifier = OVDMaskClassifier
+        else:
+            if 'init' in prototype_type:
+                classifier = OVDBoxClassifier
+            else:
+                classifier = OVDBoxCropClassifier
+        self.classifier = classifier(all_prototypes, prototypes['label_names'], backbone_type, target_size, scale_factor, min_box_size, ignore_index, prototype_type = prototype_type)
     
 
     def forward(self, images, iou_thr=0.2, conf_thres=0.001, box_conf_threshold=0.01, aggregation='mean', labels=None):
@@ -79,11 +85,8 @@ class OVDDetector(torch.nn.Module):
             elif self.classification == 'mask':
                 raise NotImplementedError('Mask RPN not implemented yet. Should use SAM to generate proposals.')
             
-            # TODO (for crop classifier) NMS first???
-            
             # Classify boxes with classifier
             B, num_proposals = proposals_scores.shape
-            #preds = self.classifier(prepare_image_for_backbone(images, self.backbone_type, text=self.text), proposals, normalize=True, aggregation=aggregation)
             preds = self.classifier(prepare_image_for_backbone(images, self.backbone_type, prototype_type=self.prototype_type), proposals, normalize=True, aggregation=aggregation)
 
             if num_proposals == 0:
@@ -120,8 +123,74 @@ class OVDDetector(torch.nn.Module):
                 del boxes
             
             return processed_predictions
+        
+        
+class OVDCropDetector(OVDDetector):    
+        
+    def forward(self, images, iou_thr=0.2, conf_thres=0.5, box_conf_threshold=0.5, aggregation='mean', labels=None):
+        '''
+        Args:
+            images (torch.Tensor): Input tensor with shape (B, C, H, W)
+            iou_thr (float): IoU threshold for NMS
+            conf_thres (float): Confidence threshold for NMS
+            box_conf_threshold (float): Confidence threshold for box proposals
+        '''
+        
+        device = images.device
+        
+        with torch.no_grad():
+            # Generate box proposals with RPN
+            if self.classification == 'box':
+                proposals, proposals_scores = self.rpn(images)
+            elif self.classification == 'obb':
+                boxes, proposals_scores, proposals = self.rpn(images)
+            elif self.classification == 'mask':
+                raise NotImplementedError('Mask RPN not implemented yet. Should use SAM to generate proposals.')
+                
+            B, num_proposals = proposals_scores.shape
+            
+            if num_proposals == 0:
+                return [torch.tensor([], device=images.device) for _ in range(B)]
 
+            # batches
+            processed_predictions = []
+            for b in range(B):
+                img = images[b]
+                filtered_boxes, filtered_scores = filter_boxes_crop(proposals[b] if self.classification == 'box' else boxes[b],
+                                                                                proposals_scores[b],
+                                                                                self.target_size,
+                                                                                self.num_classes,
+                                                                                box_conf_threshold)
+                all_crops = []
+                for box in filtered_boxes:
+                    x1, y1, x2, y2 = box.int()
+                    # crop img using the box
+                    crop = img[:, y1:y2, x1:x2]
+                    # reshape the crop to 224x224
+                    crop = TF.resize(crop, (224,224), antialias=True)
+                    all_crops.append(crop)
+ 
+                if len(filtered_boxes) > 0:
+                    all_crops = torch.stack(all_crops)
+                
+                    # extract crop features
+                    all_crops = prepare_image_for_backbone(all_crops, self.backbone_type, prototype_type=self.prototype_type)
 
+                    class_preds = self.classifier(all_crops, proposals, normalize=True, aggregation=aggregation)
+
+                    # Apply non maximum suppression
+                    pred_boxes_with_scores = torch.cat([filtered_boxes.to(device), filtered_scores[:, None].to(device), class_preds.to(device)], dim=1)
+                    max_cls_scores, _ = torch.max(class_preds, dim=-1)
+                    sorted_indices = torch.argsort(filtered_scores, descending=True)
+                    pred_boxes_with_scores = pred_boxes_with_scores[sorted_indices]
+                    nms_results = non_max_suppression(pred_boxes_with_scores.unsqueeze(0), iou_thres=iou_thr, conf_thres=conf_thres) #Uses box conf * class conf
+                    processed_predictions.append(nms_results[0])  
+                else:
+                    processed_predictions.append(torch.zeros((0, 6), device=device))
+            
+            return processed_predictions     
+
+        
 class ZeroShotDetector(torch.nn.Module):
 
     def __init__(self,

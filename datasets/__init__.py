@@ -76,8 +76,6 @@ def init_dataloaders(args):
             A.Resize(h, w),
         ], bbox_params=A.BboxParams(format='coco', label_fields=['category_ids']))
 
-        #print('DEBUG in datasets __init__.py init_dataloaders, val_augmentations')
-        #print(val_augmentations)
         val_dataset = dataClass(
             args.val_root_dir,
             args.val_annotations_file,

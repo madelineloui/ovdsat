@@ -368,7 +368,8 @@ def load_backbone_and_tokenizer(backbone_type):
         parameter.requires_grad = False
     return model, tokenizer
 
-def prepare_image_for_backbone(input_tensor, backbone_type, prototype_type='init_prototypes'): #text=False):
+
+def prepare_image_for_backbone(input_tensor, backbone_type, prototype_type='init_prototypes'):
     '''
     Preprocess an image for the backbone model given an input tensor and the backbone type.
 
@@ -380,18 +381,7 @@ def prepare_image_for_backbone(input_tensor, backbone_type, prototype_type='init
     if input_tensor.shape[1] == 4:
         input_tensor = input_tensor[:, :3, :, :]  # Discard the alpha channel (4th channel)
         
-    if prototype_type == 'text_prototypes' or prototype_type == 'coop_prototypes': # TODO and text_prototypes?
-    #if prototype_type == 'coop_prototypes':
-        #print('DEBUG 1')
-        
-        # TODO Convert to RGB to match CoOp
-        input_tensor = input_tensor[:, [2, 1, 0], :, :]
-        
-        # TODO Match CoOp norm
-        normalized_tensor = coop_normalize(input_tensor/255.0)
-    
-    else:
-    
+    if 'init' in prototype_type:
         # Define mean and std for normalization depending on the backbone type
         if 'dinov2' in backbone_type:
             mean = torch.tensor([0.485, 0.456, 0.406]).to(input_tensor.device)
@@ -405,8 +395,16 @@ def prepare_image_for_backbone(input_tensor, backbone_type, prototype_type='init
 
         # Normalize the tensor
         normalized_tensor = (input_tensor - mean[:, None, None]) / std[:, None, None]
+    
+    else:
+        # Convert to RGB to match CoOp
+        input_tensor = input_tensor[:, [2, 1, 0], :, :]
+        
+        # Match CoOp norm
+        normalized_tensor = coop_normalize(input_tensor/255.0)
 
     return normalized_tensor
+
 
 def get_backbone_params(backbone_type, prototype_type='init_prototypes'): #text=False):
     '''
@@ -417,7 +415,6 @@ def get_backbone_params(backbone_type, prototype_type='init_prototypes'): #text=
     '''
 
     if prototype_type == 'text_prototypes' or prototype_type == 'coop_prototypes':
-        #print('DEBUG 2')
         D = 768
         if '14' in backbone_type:
             patch_size=14
@@ -457,13 +454,6 @@ def extract_clip_features(images, model, backbone_type, tile_size=224, prototype
     # Create full image features tensor and a counter for aggregation
     output_features = torch.zeros((B, image_size // patch_size, image_size // patch_size, D)).to(images.device)
     count_tensor = torch.zeros((B, image_size // patch_size, image_size // patch_size,)).to(images.device)
-    
-    # TODO: override model for CoOp/text
-    if prototype_type == 'text_prototypes' or prototype_type == 'coop_prototypes':
-    #if prototype_type == 'coop_prototypes':
-        #print('DEBUG 3')
-        model = load_clip_to_cpu(backbone_type)
-        model = model.to(images.device)
 
     with torch.no_grad():
         for i in range(num_tiles_side):
@@ -484,24 +474,10 @@ def extract_clip_features(images, model, backbone_type, tile_size=224, prototype
                 # Extract the tile from the original image
                 tile = images[:, :, start_i:end_i, start_j:end_j]
                 
-                if prototype_type == 'text_prototypes' or prototype_type == 'coop_prototypes':
-                    # if backbone_type == 'openclip-14':
-                    #     dtype = dtype = next(model.visual.parameters()).dtype
-                    #     image_features = model.visual(tile.to(dtype)).unsqueeze(1)
-                    # else:
-                    image_features = model.visual(tile.type(model.dtype)).unsqueeze(1)
-                    # print('\nimage features before norm')
-                    # print(image_features.shape)
-                    # print(image_features.mean())
-                    # print(image_features.std())
-                    # print(image_features[0,0,:10])
-                    #image_features = model.visual(tile).unsqueeze(1)
+                if backbone_type == 'clip-32' or backbone_type == 'clip-14':
+                    image_features = model(tile).last_hidden_state[:, 1:]
                 else:
-                    # Extract CLIP's features before token pooling
-                    if backbone_type == 'clip-32' or backbone_type == 'clip-14':
-                        image_features = model(tile).last_hidden_state[:, 1:]
-                    else:
-                        image_features = model(tile)[-1]
+                    image_features = model(tile)[-1]
 
                 _, K, D = image_features.shape
                 p_w = p_h = int(K**0.5)
@@ -515,6 +491,7 @@ def extract_clip_features(images, model, backbone_type, tile_size=224, prototype
     output_features /= count_tensor.unsqueeze(-1)
     
     return output_features, count_tensor
+
 
 def extract_backbone_features(images, model, backbone_type, scale_factor=1, prototype_type='init_prototypes'): #text=False):
     '''
@@ -532,28 +509,12 @@ def extract_backbone_features(images, model, backbone_type, scale_factor=1, prot
         with torch.no_grad():
             feats = model.forward_features(images)['x_prenorm'][:, 1:]
     elif 'clip' in backbone_type:
-        feats, _ = extract_clip_features(images, model, backbone_type, prototype_type=prototype_type) #text=text)
+        if 'init' in prototype_type:
+            feats, _ = extract_clip_features(images, model, backbone_type) # patch embedding
+        else:
+            feats = model.visual(images.type(model.dtype)).unsqueeze(1) # cls embedding
         feats = feats.view(feats.shape[0], -1, feats.shape[-1])
     else:
         raise NotImplementedError('Backbone {} not implemented'.format(backbone_type))
-
-    return feats
-
-def extract_crop_features(crops, backbone, backbone_type, prototype_type='init_prototypes'): #text=False):
-    """
-    Args:
-        crops (Tensor): (N, C, H, W) cropped proposal images
-    Returns:
-        feats (Tensor): (N, K, D)
-    """
-    crops = F.interpolate(crops, size=(224, 224), mode='bicubic')
-    crops = prepare_image_for_backbone(crops, backbone_type, prototype_type=prototype_type) #text=text)
-
-    with torch.no_grad():
-        if 'dinov2' in backbone_type:
-            feats = backbone.forward_features(crops)['x_prenorm'][:, 1:]
-        else:
-            feats, _ = extract_clip_features(crops, backbone, backbone_type, prototype_type=prototype_type) #text=text)
-            feats = feats.view(feats.shape[0], -1, feats.shape[-1])
 
     return feats

@@ -41,11 +41,6 @@ class BaseDataset(Dataset):
         #print('FILENAME', filename)
         path = os.path.join(self.images_dir, filename)
         image = cv2.imread(path)
-        # print('debug cv2 cvtcolor')
-        #image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) # TODO convert to RGB to match CoOp
-        # img = Image.open(path).convert("RGB") # TODO try pil?
-        # to_tensor = T.ToTensor()
-        # img = to_tensor(img)
         return image, path
 
 class BoxDataset(BaseDataset):
@@ -83,10 +78,6 @@ class BoxDataset(BaseDataset):
 
         # Apply augmentations        
         if self.augmentations:
-            # print('in aug')
-            # print(self.augmentations)
-            # print()
-            
             boxes = [
                 (max(0.0, x1), max(0.0, y1), x2, y2)
                 for x1, y1, x2, y2 in boxes
@@ -97,19 +88,16 @@ class BoxDataset(BaseDataset):
                 bboxes=boxes, 
                 category_ids=labels
             )
-            #image = torch.as_tensor(transformed['image'].astype("float32").transpose(2, 0, 1)) #/ 255.0 # TODO /255.0?
-            resize_transform = T.Resize((602, 602))
-            image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1)) #/ 255.0 # TODO do not apply the transform (cv2)
-            image = resize_transform(image)
+            # resize_transform = T.Resize((602, 602))
+            # image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1))
+            # image = resize_transform(image)
+            
+            image = torch.as_tensor(transformed['image'].astype("float32").transpose(2, 0, 1)) #original
+
             boxes = transformed['bboxes']
-            # print('getitem')
-            # print(image.shape)
-            # print(image.mean())
-            # #print(image[:5,:5,:5])
-            # print()
             labels = transformed['category_ids']
         else:
-            image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1)) #/ 255.0 # TODO /255.0?
+            image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1))
 
         # Convert lists to numpy arrays before creating tensors
         boxes = np.array(boxes)

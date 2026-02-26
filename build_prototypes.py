@@ -230,7 +230,7 @@ def build_object_prototypes(args, model, init_data, device, patch_size, crop_pat
                 # Read image and mask
                 #print(image_file)
                 image = Image.open(image_file)
-                image, _ = preprocess(image, None, backbone_type=args.backbone_type, target_size=(224,244), patch_size=patch_size)
+                image, _ = preprocess(image, None, backbone_type=args.backbone_type, target_size=(224,224), patch_size=patch_size)
 
                 # Extract features and reshape to 2D image
                 features = extract_backbone_features(image.to(device), model, args.backbone_type, scale_factor=args.scale_factor)

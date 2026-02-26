@@ -3,11 +3,11 @@ import numpy as np
 import torch.nn.functional as F
 import torchvision.transforms as T
 from transformers import CLIPModel
-from utils_dir.backbones_utils import extract_backbone_features, load_backbone, load_backbone_and_tokenizer
+from utils_dir.backbones_utils import extract_backbone_features, load_backbone, load_backbone_and_tokenizer, load_clip_to_cpu
 
 class OVDBaseClassifier(torch.nn.Module):
 
-    def __init__(self, prototypes, class_names, backbone_type='dinov2', target_size=(602,602), scale_factor=2, min_box_size=5, ignore_index=-1, prototype_type='init_prototypes'): #text=False):
+    def __init__(self, prototypes, class_names, backbone_type='dinov2', target_size=(602,602), scale_factor=2, min_box_size=5, ignore_index=-1, prototype_type='init_prototypes'):
         super().__init__()
         self.scale_factor = scale_factor
         self.target_size = target_size
@@ -15,7 +15,6 @@ class OVDBaseClassifier(torch.nn.Module):
         self.ignore_index = ignore_index
         self.backbone_type = backbone_type
         self.class_names = class_names
-        #self.text = text
         self.prototype_type = prototype_type
         
         print(prototype_type)
@@ -23,22 +22,16 @@ class OVDBaseClassifier(torch.nn.Module):
         if isinstance(self.scale_factor, int):
             self.scale_factor = [self.scale_factor]
 
-        # Initialize backbone TODO not needed since override in backbones_utils.py
-        if self.prototype_type == 'text_prototypes' or self.prototype_type == 'coop_prototypes':
-            self.backbone, _ = load_backbone_and_tokenizer(backbone_type)  
-        else:
+        if 'init' in  self.prototype_type:
             self.backbone = load_backbone(backbone_type)  
+        else:
+            self.backbone = load_clip_to_cpu(backbone_type)
         
         # Initialize embedding as a learnable parameter
         self.embedding = torch.nn.Parameter(prototypes)
         self.num_classes = self.embedding.shape[0]
         
-        if 'customclip' in self.backbone_type:
-            ckpt_path = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/customclip.pth'
-            checkpoint = torch.load(ckpt_path, map_location=torch.device('cpu'))
-            self.logit_scale = checkpoint['model.logit_scale']
-        else:
-            self.logit_scale = None
+        self.logit_scale = self.backbone.logit_scale #torch.tensor(4.6028)
 
     def get_categories(self):
         return {idx: label for idx, label in enumerate(self.class_names)}
@@ -57,13 +50,6 @@ class OVDBaseClassifier(torch.nn.Module):
         num_feats = feats.shape[0]
         num_classes = embeddings.shape[0]
         patch_2d_size = int(np.sqrt(feats.shape[1]))
-        
-        # print('feats.shape')
-        # print(feats.shape)
-        # print('num_feats')
-        # print(num_feats)
-        # print('batch_size')
-        # print(batch_size)
 
         cosim_list = []
         for start_idx in range(0, num_classes, batch_size):
@@ -72,9 +58,7 @@ class OVDBaseClassifier(torch.nn.Module):
             embedding_batch = embeddings[start_idx:end_idx]  # Get a batch of embeddings
             
             ### Original dot product
-            #if not self.text: 
-            if self.prototype_type == 'init_prototypes':
-                #print('-> init_prototype (dot product)')
+            if 'init' in self.prototype_type:
                 # Reshape and broadcast for cosine similarity
                 B, K, D = feats.shape
                 features_reshaped = feats.view(B, 1, K, D)
@@ -89,9 +73,6 @@ class OVDBaseClassifier(torch.nn.Module):
                     embedding_norm = torch.norm(embedding_reshaped, dim=3, keepdim=True).squeeze(-1)
                     # Normalize
                     dot_product /= (feats_norm * embedding_norm + 1e-8)  # Add epsilon for numerical stability
-
-                # if self.logit_scale: # for coop, add the logit scale
-                #     dot_product *= self.logit_scale.exp()
                     
             else:
                 feat_norm = (feats / feats.norm(dim=-1, keepdim=True))
@@ -99,23 +80,23 @@ class OVDBaseClassifier(torch.nn.Module):
                 feat_norm = feat_norm.float()
                 embed_norm = embed_norm.float()
                 
-                if self.prototype_type == 'text_prototypes':
-                    #print('-> text_prototype (similarity)')
-                    #SIMILARITY
+                if 'text' in self.prototype_type:
+                    # SIMILARITY
                     dot_product = feat_norm @ embed_norm.t()
                     dot_product = dot_product.transpose(1, 2)
-                    # logit_scale = torch.tensor(4.6028)
-                    # dot_product = logit_scale.exp() * feat_norm @ embed_norm.t()
+                    
+                    # SOFTMAX
+                    # dot_product = self.logit_scale.exp() * feat_norm @ embed_norm.t()
                     # dot_product = dot_product.transpose(1, 2)
                     # dot_product = dot_product.softmax(dim=1)
                     
-                elif self.prototype_type == 'coop_prototypes':
-                    #print('-> coop_prototype (softmax)')
+                elif 'coop' in self.prototype_type:
                     # SOFTMAX
-                    logit_scale = torch.tensor(4.6028)
-                    dot_product = logit_scale.exp() * feat_norm @ embed_norm.t()
+                    dot_product = self.logit_scale.exp() * feat_norm @ embed_norm.t()
                     dot_product = dot_product.transpose(1, 2)
                     dot_product = dot_product.softmax(dim=1)
+                    
+                    # SIMILARITY
                     # dot_product = feat_norm @ embed_norm.t()
                     # dot_product = dot_product.transpose(1, 2)
                 else:
@@ -132,16 +113,13 @@ class OVDBaseClassifier(torch.nn.Module):
 
         # Interpolate cosine similarity maps to original resolution
         cosim = F.interpolate(cosim, size=self.target_size, mode='bicubic') # TODO bilinear or bicubic? Doesn't seem to matter on small sample
-        # print('cosim debug')
-        # print(cosim.shape)
-        # print(cosim[0,:5,:5,:5])
 
         return cosim
 
 
 class OVDBoxClassifier(OVDBaseClassifier):
-    def __init__(self, prototypes, class_names, backbone_type='dinov2', target_size=(602,602), scale_factor=2, min_box_size=5, ignore_index=-1, prototype_type='init_prototypes'): #text=False):
-        super().__init__(prototypes, class_names, backbone_type, target_size, scale_factor, min_box_size, ignore_index, prototype_type) #text)
+    def __init__(self, prototypes, class_names, backbone_type='dinov2', target_size=(602,602), scale_factor=2, min_box_size=5, ignore_index=-1, prototype_type='init_prototypes'):
+        super().__init__(prototypes, class_names, backbone_type, target_size, scale_factor, min_box_size, ignore_index, prototype_type)
         
     def forward(self, images, boxes, cls=None, normalize=False, return_cosim=False, aggregation='mean', k=10):
         '''
@@ -156,14 +134,11 @@ class OVDBoxClassifier(OVDBaseClassifier):
         scales = []
 
         for scale in self.scale_factor:
-            feats = extract_backbone_features(images, self.backbone, self.backbone_type, scale_factor=scale, prototype_type=self.prototype_type) #text=self.text)
+            feats = extract_backbone_features(images, self.backbone, self.backbone_type, scale_factor=scale, prototype_type=self.prototype_type)
             cosine_sim = self.get_cosim_mini_batch(feats, self.embedding, normalize=normalize)
             scales.append(cosine_sim)
 
         cosine_sim = torch.stack(scales).mean(dim=0)
-        
-        # print('\ncosine_sim.shape')
-        # print(cosine_sim.shape)
 
         # Gather similarity values inside each box and compute average box similarity
         box_similarities = []
@@ -196,8 +171,6 @@ class OVDBoxClassifier(OVDBaseClassifier):
                         box_sim = torch.zeros(self.num_classes, device=cosine_sim.device)
                     else:
                         box_sim = region.reshape(region.shape[0], -1).max(dim=1).values
-                    #_,n,h,w = cosine_sim.shape
-                    #box_sim, _ = cosine_sim[b, :, y_min:y_max - 1, x_min:x_max - 1].reshape(n, -1).max(dim=1)
                 elif aggregation == 'topk':
                     _,n,h,w = cosine_sim.shape
                     box_sim = cosine_sim[b, :, y_min:y_max - 1, x_min:x_max - 1].reshape(n, -1)
@@ -219,6 +192,87 @@ class OVDBoxClassifier(OVDBaseClassifier):
 
         # Flatten box_logits and target_labels
         return box_similarities.view(B, -1, self.num_classes)
+    
+    
+class OVDBoxCropClassifier(OVDBoxClassifier):
+    
+    def get_cosim_mini_batch(self, feats, embeddings, batch_size=100, normalize=False):
+        '''
+        Compute cosine similarity between features and prototype embeddings in mini-batches to avoid memory issues.
+
+        Args:
+            feats (torch.Tensor): Features with shape (B, K, D)
+            embeddings (torch.Tensor): Embeddings with shape (N, D)
+            batch_size (int): mini-batch size for computing the cosine similarity
+            normalize (bool): Whether to normalize the cosine similarity maps
+        '''
+        
+        device=feats.device
+
+        num_feats = feats.shape[0]
+        num_classes = embeddings.shape[0]
+        patch_2d_size = int(np.sqrt(feats.shape[1]))
+
+        cosim_list = []
+        cosim_list = []
+        for start_idx in range(0, num_classes, batch_size):
+            end_idx = min(start_idx + batch_size, num_classes)
+            embedding_batch = embeddings[start_idx:end_idx]  # Get a batch of embeddings
+
+            if 'init' in self.prototype_type:
+                B, N, D = feats.shape
+                K = embedding_batch.shape[0]
+
+                features_reshaped = feats.view(B, 1, N, D).to(device)        # [B,1,N,D]
+                embedding_reshaped = embedding_batch.view(1, K, 1, D).to(device)  # [1,K,1,D]
+
+                dot_product = (features_reshaped * embedding_reshaped).sum(dim=3)  # [B,K,N]
+
+                feat_norm  = torch.norm(features_reshaped, dim=3, keepdim=True).squeeze(-1)   # [B,1,N]
+                embed_norm = torch.norm(embedding_reshaped, dim=3, keepdim=True).squeeze(-1)  # [1,K,1]
+
+                dot_product /= (feat_norm * embed_norm + 1e-8)
+
+            else:
+                feat_norm = (feats / feats.norm(dim=-1, keepdim=True))
+                embed_norm = embedding_batch / embedding_batch.norm(dim=-1, keepdim=True)
+
+                feat_norm = feat_norm.float().to(device)
+                embed_norm = embed_norm.float().to(device)
+
+                ### Modified to exactly match CLIP cosine similarity in CoOp
+                dot_product = (feat_norm @ embed_norm.t())
+                dot_product = dot_product.transpose(1, 2)
+
+                # Softmax
+                dot_product *= self.logit_scale.exp()
+                dot_product = dot_product.softmax(dim=1)
+
+            # Append the similarity scores for this batch to the list
+            cosim_list.append(dot_product)
+       
+        # Concatenate the similarity scores from different batches
+        cosim = torch.cat(cosim_list, dim=1).squeeze(-1)
+
+        return cosim
+        
+    def forward(self, crops, boxes, cls=None, normalize=False, return_cosim=False, aggregation='mean', k=10):
+        '''
+        Args:
+            images (torch.Tensor): Input tensor with shape (B, C, H, W)
+            boxes (torch.Tensor): Box coordinates with shape (B, max_boxes, 4)
+            cls (torch.Tensor): Class labels with shape (B, max_boxes)
+            normalize (bool): Whether to normalize the cosine similarity maps
+            return_cosim (bool): Whether to return the cosine similarity maps
+        '''
+        
+        # Extract crop features
+        feats = extract_backbone_features(crops, self.backbone, self.backbone_type, prototype_type=self.prototype_type)
+        
+        # Get crop cosine sim
+        box_similarities = self.get_cosim_mini_batch(feats, self.embedding, normalize=normalize)
+        
+        return box_similarities
 
 
 class OVDImageClassifier(OVDBaseClassifier):
@@ -335,103 +389,3 @@ class OVDMaskClassifier(OVDBaseClassifier):
             raise ValueError('Invalid aggregation method')
 
         return mask_sim
-
-"""
-class ZeroShotClassifier(torch.nn.Module):
-     def __init__(self, prototypes, class_names, backbone_type='clip-14', target_size=(602,602), scale_factor=2, min_box_size=5, ignore_index=-1):
-        super().__init__()
-        self.scale_factor = scale_factor
-        self.target_size = target_size
-        self.min_box_size = min_box_size
-        self.ignore_index = ignore_index
-        self.backbone_type = backbone_type
-        self.class_names = class_names
-        
-        if isinstance(self.scale_factor, int):
-            self.scale_factor = [self.scale_factor]
-
-        # Initialize backbone
-        self.backbone = load_backbone(backbone_type)  
-        
-        # Initialize embedding as a learnable parameter
-        self.embedding = torch.nn.Parameter(prototypes)
-        self.num_classes = self.embedding.shape[0]
-        
-    def get_categories(self):
-        return {idx: label for idx, label in enumerate(self.class_names)}
-    
-    def forward(self, images, boxes, text_embed, cls=None, normalize=False, return_cosim=False, aggregation='mean', k=10):
-        '''
-        Args:
-            images (torch.Tensor): Input tensor with shape (B, C, H, W)
-            boxes (torch.Tensor): Box coordinates with shape (B, max_boxes, 4)
-            cls (torch.Tensor): Class labels with shape (B, max_boxes)
-            normalize (bool): Whether to normalize the cosine similarity maps
-            return_cosim (bool): Whether to return the cosine similarity maps
-        '''
-        
-        # Text embed should be all the clip embedded class names
-        # Extract bounding box cropping from images
-        # Resize each crop to 224x224
-        # Get CLIP image embedding of each crop
-        # Get cos sim between image and all embedded class texts and get max to be the predicted class
-        
-        scales = []
-
-        for scale in self.scale_factor:
-            feats = extract_backbone_features(images, self.backbone, self.backbone_type, scale_factor=scale)
-            cosine_sim = self.get_cosim_mini_batch(feats, self.embedding, normalize=normalize)
-            scales.append(cosine_sim)
-
-        cosine_sim = torch.stack(scales).mean(dim=0)
-
-         # Gather similarity values inside each box and compute average box similarity
-        box_similarities = []
-        B = images.shape[0]
-        for b in range(B):
-            image_boxes = boxes[b][:, :4]
-    
-            image_similarities = []
-            count = 0
-            for i, box in enumerate(image_boxes):
-                x_min, y_min, x_max, y_max = box.int()
-                
-                if cls is not None:
-                    if (x_min < 0 or
-                        y_min < 0 or
-                        y_max > self.target_size[0] or
-                        x_max > self.target_size[0] or
-                        y_max - y_min < self.min_box_size or
-                        x_max - x_min < self.min_box_size):
-                        count += 1
-                        cls[b][i] = self.ignore_index   # If invalid box, assign the label to ignore it while computing the loss
-                        image_similarities.append(torch.zeros(self.num_classes, device=images.device))
-                        continue
-                
-                if aggregation == 'mean':
-                    box_sim = cosine_sim[b, :, y_min:y_max, x_min:x_max].mean(dim=[1, 2])
-                elif aggregation == 'max':
-                    _,n,h,w = cosine_sim.shape
-                    box_sim, _ = cosine_sim[b, :, y_min:y_max - 1, x_min:x_max - 1].reshape(n, -1).max(dim=1)
-                elif aggregation == 'topk':
-                    _,n,h,w = cosine_sim.shape
-                    box_sim = cosine_sim[b, :, y_min:y_max - 1, x_min:x_max - 1].reshape(n, -1)
-                    topk = k if k <= box_sim.shape[1] else box_sim.shape[1]
-                    box_sim, _ = box_sim.topk(topk, dim=1)
-                    box_sim = box_sim.mean(dim=1)
-                else:
-                    raise ValueError('Invalid aggregation method')
-                
-                has_nan = torch.isnan(box_sim).any().item()
-                image_similarities.append(box_sim)
-    
-            box_similarities.append(torch.stack(image_similarities))
-    
-        box_similarities = torch.stack(box_similarities)  # Shape: [B, max_boxes, N]
-        
-        if return_cosim:
-            return box_similarities.view(b, -1, self.num_classes), cosine_sim
-
-        # Flatten box_logits and target_labels
-        return box_similarities.view(B, -1, self.num_classes)
-"""

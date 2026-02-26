@@ -25,16 +25,29 @@ def filter_boxes(boxes, classes, scores, target_size, num_labels, box_conf_thres
     return filtered_boxes, filtered_classes[:, :num_labels], filtered_scores
 
 
+def filter_boxes_crop(boxes, scores, target_size, num_labels, box_conf_threshold=0):
+    
+    # Filter out small boxes
+    target_height, target_width = target_size
+    keep = ((boxes[:, 0] >= 0) & (boxes[:, 1] >= 0) &
+            (boxes[:, 2] <= target_width) & (boxes[:, 3] <= target_height))
+
+    filtered_boxes = boxes[keep]
+    filtered_scores = scores[keep]
+    
+    # Filter out boxes with low confidence
+    keep = filtered_scores > box_conf_threshold
+    filtered_boxes = filtered_boxes[keep, ...]
+    filtered_scores = filtered_scores[keep]
+
+    return filtered_boxes, filtered_scores
+
+
 def map_labels_to_prototypes(dataset_categories, model_prototypes, labels):
-    # print('dataset_categories')
-    # print(dataset_categories)
-    # print('model_prototypes')
-    # print(model_prototypes)
     mapped_labels = []
     # Create a reverse mapping from class names to indices for the dataset categories
     dataset_categories_reverse = {v: k for k, v in model_prototypes.items()}
-    # print('dataset_categories_reverse')
-    # print(dataset_categories_reverse)
+
     # Map dataset category indices to model prototype indices
     for batch_labels in labels:
         mapped_batch_labels = []
@@ -42,10 +55,6 @@ def map_labels_to_prototypes(dataset_categories, model_prototypes, labels):
             if label == -1:
                 mapped_batch_labels.append(-1)
             elif label.item() in dataset_categories and dataset_categories[label.item()] in dataset_categories_reverse:
-                # print('label')
-                # print(label)
-                # print('label.item()')
-                # print(label.item())
                 class_name = dataset_categories[label.item()]
                 if class_name in dataset_categories_reverse:
                     mapped_batch_labels.append(dataset_categories_reverse[class_name])

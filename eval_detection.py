@@ -4,7 +4,7 @@ import numpy as np
 from tqdm import tqdm
 from argparse import ArgumentParser
 from datasets import init_dataloaders
-from models.detector import OVDDetector
+from models.detector import OVDDetector, OVDCropDetector
 from datasets import get_base_new_classes
 from utils_dir.nms import custom_xywh2xyxy
 from utils_dir.metrics import ap_per_class, box_iou
@@ -37,7 +37,11 @@ def prepare_model(args):
     bg_prototypes = torch.load(args.bg_prototypes_path) if args.bg_prototypes_path is not None else None
     if args.bg_prototypes_path is not None:
         print(f'Using background prototypes from {args.bg_prototypes_path}')
-    model = OVDDetector(prototypes, bg_prototypes, scale_factor=args.scale_factor, backbone_type=args.backbone_type, target_size=args.target_size, classification=args.classification, prototype_type=args.prototype_type).to(device)
+    
+    if 'init' in args.prototype_type:
+        model = OVDDetector(prototypes, bg_prototypes, scale_factor=args.scale_factor, backbone_type=args.backbone_type, target_size=args.target_size, classification=args.classification, prototype_type=args.prototype_type).to(device)
+    else:
+        model = OVDCropDetector(prototypes, bg_prototypes, scale_factor=args.scale_factor, backbone_type=args.backbone_type, target_size=args.target_size, classification=args.classification, prototype_type=args.prototype_type).to(device)
     return model, device
 
 def process_batch(detections, labels, iouv):
