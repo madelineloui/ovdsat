@@ -90,25 +90,33 @@ class BoxRPN(torch.nn.Module):
             padding_constraints=self.model.backbone.padding_constraints,
         )
         features = self.model.backbone(images.tensor)
-        # print(features.keys())
-        # print('features')
-        # print(features['p3'].shape)
-        # print(features['p4'].shape)
-        # print(features['p5'].shape)
-        # print(features['p6'].shape)
-        # print(features['p7'].shape)
+
+#         with torch.no_grad():
+#             proposals, _ = self.model.proposal_generator(images, features, None)
+        
+#         # proposal_shapes = [p.proposal_boxes.tensor.shape[0] for p in proposals]
+#         # print(f"Proposal counts per image: {proposal_shapes}", flush=True)
+#         # print(f"All same: {len(set(proposal_shapes)) == 1}", flush=True)
+#         boxes = torch.stack([p.proposal_boxes.tensor for p in proposals])
+
+#         box_scores = torch.stack([p.objectness_logits / self.box_norm_factor for p in proposals])
 
         with torch.no_grad():
             proposals, _ = self.model.proposal_generator(images, features, None)
-        
-        # print('proposals')
-        # print(len(proposals))
-        # print(type(proposals[0]))
-        # print(proposals[0])
-        
-        boxes = torch.stack([p.proposal_boxes.tensor for p in proposals])
-        box_scores = torch.stack([p.objectness_logits / self.box_norm_factor for p in proposals])
-        # print(boxes.shape)
-        # print(box_scores.shape)
+
+        box_tensors = [p.proposal_boxes.tensor for p in proposals]
+        score_tensors = [p.objectness_logits / self.box_norm_factor for p in proposals]
+
+        max_boxes = max((t.shape[0] for t in box_tensors), default=1)
+        B = len(box_tensors)
+        device = box_tensors[0].device
+
+        boxes = torch.zeros(B, max_boxes, 4, device=device)
+        box_scores = torch.full((B, max_boxes), float('-inf'), device=device)
+
+        for i, (b, s) in enumerate(zip(box_tensors, score_tensors)):
+            if b.shape[0] > 0:
+                boxes[i, :b.shape[0]] = b
+                box_scores[i, :s.shape[0]] = s
 
         return boxes, box_scores

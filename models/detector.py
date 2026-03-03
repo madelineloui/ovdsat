@@ -162,16 +162,34 @@ class OVDCropDetector(OVDDetector):
                                                                                 self.num_classes,
                                                                                 box_conf_threshold)
                 all_crops = []
-                for box in filtered_boxes:
+                kept_boxes = []
+                kept_scores = []
+                for box, score in zip(filtered_boxes, filtered_scores):
                     x1, y1, x2, y2 = box.int()
+                    
+                    # clamp to image bounds
+                    _, H, W = img.shape
+                    x1 = x1.clamp(0, W)
+                    x2 = x2.clamp(0, W)
+                    y1 = y1.clamp(0, H)
+                    y2 = y2.clamp(0, H)
+
+                    # skip degenerate crops
+                    if (x2 - x1) <= 0 or (y2 - y1) <= 0:
+                        continue
+
                     # crop img using the box
                     crop = img[:, y1:y2, x1:x2]
                     # reshape the crop to 224x224
                     crop = TF.resize(crop, (224,224), antialias=True)
                     all_crops.append(crop)
+                    kept_boxes.append(box)
+                    kept_scores.append(score)
  
-                if len(filtered_boxes) > 0:
+                if len(all_crops) > 0:
                     all_crops = torch.stack(all_crops)
+                    filtered_boxes = torch.stack(kept_boxes)
+                    filtered_scores = torch.stack(kept_scores)
                 
                     # extract crop features
                     all_crops = prepare_image_for_backbone(all_crops, self.backbone_type, prototype_type=self.prototype_type)

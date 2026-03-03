@@ -31,7 +31,7 @@ class OVDBaseClassifier(torch.nn.Module):
         self.embedding = torch.nn.Parameter(prototypes)
         self.num_classes = self.embedding.shape[0]
         
-        self.logit_scale = self.backbone.logit_scale #torch.tensor(4.6028)
+        self.logit_scale = torch.tensor(4.6028)
 
     def get_categories(self):
         return {idx: label for idx, label in enumerate(self.class_names)}
