@@ -41,13 +41,14 @@ PATH_CKPT_CLIP14_TEST = '/home/gridsan/manderson/train-CLIP/run/fmow/fmow-test-4
 PATH_CKPT_CLIP14_FMOW = '/home/gridsan/manderson/train-CLIP/run/fmow/fmow-test-4.pth'
 PATH_CKPT_OPENCLIP14_FMOW = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-fmow-4.pt'
 PATH_CKPT_LONGCLIP14_FMOW = '/home/gridsan/manderson/ovdsat/Long-CLIP/checkpoints/005-07--05_28_20_longclip.pt'
-PATH_CKPT_OPENCLIP14_REMOTE_FMOW = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-remote-fmow.pt'
-PATH_CKPT_OPENCLIP14_GEORS_FMOW = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-geors-fmow.pt'
+PATH_CKPT_OPENCLIP14_REMOTE_FMOW = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-remote-fmow-summary-epoch75.pt'
+PATH_CKPT_OPENCLIP14_GEORS_FMOW = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-geors-fmow-summary-epoch75.pt'
 
 
 # For text-based models
 def load_clip_to_cpu(backbone_name):
-    
+
+    print('in backbone utils')
     print('-> using backbone:', backbone_name)
     
     # Start with this for all
@@ -69,22 +70,22 @@ def load_clip_to_cpu(backbone_name):
         print('LOADED OPENCLIP-14! (load_clip_to_cpu)')
     
     elif backbone_name == 'remoteclip-14':
-        state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/RemoteCLIP-ViT-L-14.pt', map_location="cpu")
+        state_dict = torch.load(PATH_CKPT_REMOTECLIP_14, map_location="cpu")
         model = clip.build_model(state_dict) 
         print('LOADED REMOTECLIP-14! (load_clip_to_cpu)')
         
     elif backbone_name == 'georsclip-14':
-        state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/RS5M_ViT-L-14.pt', map_location="cpu")
+        state_dict = torch.load(PATH_CKPT_GEORSCLIP_14, map_location="cpu")
         model = clip.build_model(state_dict) 
         print('LOADED GEORSCLIP-14! (load_clip_to_cpu)')
     
     elif backbone_name == 'openclip-14-remote-fmow':
-        state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-remote-fmow.pt', map_location="cpu")
+        state_dict = torch.load(PATH_CKPT_OPENCLIP14_REMOTE_FMOW, map_location="cpu")
         model = clip.build_model(state_dict) 
         print('LOADED RemoteCLIP-14+FMOW! (load_clip_to_cpu)')
         
     elif backbone_name == 'openclip-14-geors-fmow':
-        state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-geors-fmow.pt', map_location="cpu")
+        state_dict = torch.load(PATH_CKPT_OPENCLIP14_GEORS_FMOW, map_location="cpu")
         model = clip.build_model(state_dict) 
         print('LOADED GEORSCLIP-14+FMOW! (load_clip_to_cpu)')
         
