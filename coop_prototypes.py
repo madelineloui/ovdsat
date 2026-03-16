@@ -13,7 +13,7 @@ from torchvision import transforms
 from transformers import CLIPModel
 from torchvision import transforms
 from argparse import ArgumentParser
-from utils_dir.backbones_utils import load_backbone_and_tokenizer, extract_backbone_features, get_backbone_params
+from utils_dir.backbones_utils import load_clip_to_cpu, load_backbone_and_tokenizer, extract_backbone_features, get_backbone_params
 from CoOp.clip import clip
 #from CoOp.clip.simple_tokenizer import SimpleTokenizer as _Tokenizer
 import open_clip
@@ -100,74 +100,6 @@ class TextEncoder(nn.Module):
         x = x[torch.arange(x.shape[0]), tokenized_prompts.argmax(dim=-1)] @ self.text_projection
 
         return x
-
-# def load_clip_to_cpu():
-    
-#     backbone_name = "ViT-L/14"
-#     url = clip._MODELS[backbone_name]
-#     model_path = clip._download(url)
-
-#     try:
-#         # loading JIT archive
-#         model = torch.jit.load(model_path, map_location="cpu").eval()
-#         state_dict = None
-
-#     except RuntimeError:
-#         state_dict = torch.load(model_path, map_location="cpu")
-
-#     model = clip.build_model(state_dict or model.state_dict())
-    
-#     # TODO: hardcoded to use remoteclip
-#     state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/RemoteCLIP-ViT-L-14.pt', map_location="cpu")
-#     model = clip.build_model(state_dict)
-                                 
-#     return model
-
-
-def load_clip_to_cpu(backbone_name):
-    
-    print('-> using backbone:', backbone_name)
-    
-    # Start with this for all
-    url = clip._MODELS["ViT-L/14"]
-    model_path = clip._download(url)
-    try:
-        # loading JIT archive
-        model = torch.jit.load(model_path, map_location="cpu").eval()
-        state_dict = None
-    except RuntimeError:
-        state_dict = torch.load(model_path, map_location="cpu")
-    model = clip.build_model(state_dict or model.state_dict())
-    
-    if backbone_name == 'clip-14':
-        print('LOADED CLIP-14!')
-        
-    if backbone_name == 'openclip-14':
-        model, _, _ = open_clip.create_model_and_transforms('ViT-L-14', pretrained='openai')
-        model.dtype = next(model.visual.parameters()).dtype
-        print('LOADED OPENCLIP-14!')
-    
-    elif backbone_name == 'remoteclip-14':
-        state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/RemoteCLIP-ViT-L-14.pt', map_location="cpu")
-        model = clip.build_model(state_dict) 
-        print('LOADED REMOTECLIP-14!')
-        
-    elif backbone_name == 'georsclip-14':
-        state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/RS5M_ViT-L-14.pt', map_location="cpu")
-        model = clip.build_model(state_dict) 
-        print('LOADED GEORSCLIP-14!')
-    
-    elif backbone_name == 'openclip-14-remote-fmow':
-        state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-remote-fmow.pt', map_location="cpu")
-        model = clip.build_model(state_dict) 
-        print('LOADED RemoteCLIP-14+FMOW!')
-        
-    elif backbone_name == 'openclip-14-geors-fmow':
-        state_dict = torch.load('/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-geors-fmow.pt', map_location="cpu")
-        model = clip.build_model(state_dict) 
-        print('LOADED GEORSCLIP-14+FMOW!')
-        
-    return model
 
 
 def build_coop_prototypes(args, device):
