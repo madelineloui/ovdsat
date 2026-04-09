@@ -1,6 +1,5 @@
 # Open-Vocabulary Detection for Satellite Imagery (OVDSAT)
 
-We build our code from:
 *Exploring Robust Features for Few-Shot Object Detection in Satellite Imagery*
 [Xavier Bou](https://xavibou.github.io/), [Gabriele Facciolo](http://gfacciol.github.io/), [Rafael Grompone](https://scholar.google.fr/citations?user=GLovf4UAAAAJ&hl=en), [Jean-Michel Morel](https://sites.google.com/site/jeanmichelmorelcmlaenscachan/), [Thibaud Ehret](https://tehret.github.io)
 
@@ -102,20 +101,20 @@ Add any additional or custom backbones to `utils_dir/backbones_utils.py`, with p
 If you found our work useful, please cite it as follows:
 
 ```bibtex
-@article{anderson2025measuring,
-  title={Measuring and Mitigating Hallucinations in Vision-Language Dataset Generation for Remote Sensing},
-  author={Anderson, Madeline and Cha, Miriam and Freeman, William T and Perron, J Taylor and Maidel, Nathaniel and Cahoy, Kerri},
-  journal={arXiv preprint arXiv:2501.14905},
-  year={2025}
-}
-```
-
-```bibtex
 @article{Bou:2024,
   title={Exploring Robust Features for Few-Shot Object Detection in Satellite Imagery},
   author={Bou, Xavier and Facciolo, Gabriele and von Gioi, Rafael Grompone and Morel, Jean-Michel and Ehret, Thibaud},
   journal={arXiv preprint arXiv:2403.05381},
   year={2024}
+}
+```
+
+```bibtex
+@article{anderson2025measuring,
+  title={Measuring and Mitigating Hallucinations in Vision-Language Dataset Generation for Remote Sensing},
+  author={Anderson, Madeline and Cha, Miriam and Freeman, William T and Perron, J Taylor and Maidel, Nathaniel and Cahoy, Kerri},
+  journal={arXiv preprint arXiv:2501.14905},
+  year={2025}
 }
 ```
 
