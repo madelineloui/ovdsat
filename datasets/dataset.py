@@ -61,7 +61,8 @@ class BoxDataset(BaseDataset):
             
             labels.append(annotation["category_id"])
             boxes.append(annotation["bbox"] if "bbox" in annotation else [])  
-        return labels, boxes
+        #return labels, boxes
+        return labels[:self.max_boxes], boxes[:self.max_boxes]
 
     def __getitem__(self, idx):
         #print('loading image')
@@ -78,9 +79,18 @@ class BoxDataset(BaseDataset):
 
         # Apply augmentations        
         if self.augmentations:
+
+            # for box in boxes:
+            #     x1, y1, x2, y2 = box
+            #     print(x1, y1, x2, y2)
+            # boxes = [
+            #     (max(0.0, x1), max(0.0, y1), min(w-1, x2), min(h-1, y2))
+            #     for x1, y1, x2, y2 in boxes
+            # ]
+
             boxes = [
-                (max(0.0, x1), max(0.0, y1), x2, y2)
-                for x1, y1, x2, y2 in boxes
+                (max(0, x), max(0, y), min(w - x, bw), min(h - y, bh))
+                for (x, y, bw, bh) in boxes
             ]
                 
             transformed = self.augmentations(
@@ -116,6 +126,7 @@ class BoxDataset(BaseDataset):
             padded_labels = torch.cat([padded_labels, pad_labels], dim=0)
         
         return image, padded_boxes, padded_labels, metadata
+
 
 class OBBDataset(BaseDataset):
 

@@ -31,6 +31,13 @@ def get_base_new_classes(dataset):
 
     return base_classes, new_classes
 
+def collate_fn(batch):
+    images = [item[0] for item in batch]
+    boxes = [item[1] for item in batch]
+    labels = [item[2] for item in batch]
+    metadata = [item[3] for item in batch]
+    return images, boxes, labels, metadata
+
 def init_dataloaders(args):
     train_annotations_file = getattr(args, 'train_annotations_file', None)
     val_annotations_file = getattr(args, 'val_annotations_file', None)
@@ -82,13 +89,17 @@ def init_dataloaders(args):
             augmentations=val_augmentations,
             target_size=args.target_size,
         )
+
         val_dataset.dynamic_size = True if args.batch_size == 1 else False
+        
         val_dataloader = DataLoader(
             val_dataset, 
             batch_size=args.batch_size, 
             shuffle=False,
-            num_workers=args.num_workers
+            num_workers=args.num_workers,
+            #collate_fn=lambda batch: list(zip(*batch))
         )
+
 
     else:
         val_dataloader = None

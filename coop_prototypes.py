@@ -142,20 +142,14 @@ def build_coop_prototypes(args, device):
         bg_index = class_names.index('background')
     
     _, tokenizer = load_backbone_and_tokenizer(args.backbone_type)
-    
-    #print('DEBUG args.ctx_path')
-    #print(args.ctx_path)
+
+    print(f'Using context from {args.ctx_path}')
     context = torch.load(args.ctx_path, map_location=torch.device('cpu') )
     
     prefix = context['state_dict']['token_prefix']
     ctx = context['state_dict']['ctx']
     suffix = context['state_dict']['token_suffix']
     
-    #name_lens = [len(tokenizer.encode(NEW_CNAMES[name])) for name in class_names]
-    # name_lens = [
-    #     len(tokenizer.encode(NEW_CNAMES[name] if name in NEW_CNAMES else name))
-    #     for name in class_names
-    #     ]
     name_lens = [
         len(tokenizer.encode(NEW_CNAMES[name] if name in NEW_CNAMES else name))
         for name in class_names
@@ -166,31 +160,9 @@ def build_coop_prototypes(args, device):
 
     if ctx.dim() == 2:
         ctx = ctx.unsqueeze(0).expand(n_cls, -1, -1)
-
-    # # For middle, unified context 
-    # half_n_ctx = n_ctx // 2
-    # prompts = []
-    # for i in range(n_cls):
-    #     name_len = name_lens[i]
-    #     prefix_i = prefix[i : i + 1, :, :]
-    #     class_i = suffix[i : i + 1, :name_len, :]
-    #     suffix_i = suffix[i : i + 1, name_len:, :]
-    #     ctx_i_half1 = ctx[i : i + 1, :half_n_ctx, :]
-    #     ctx_i_half2 = ctx[i : i + 1, half_n_ctx:, :]
-    #     prompt = torch.cat(
-    #         [
-    #             prefix_i,     # (1, 1, dim)
-    #             ctx_i_half1,  # (1, n_ctx//2, dim)
-    #             class_i,      # (1, name_len, dim)
-    #             ctx_i_half2,  # (1, n_ctx//2, dim)
-    #             suffix_i,     # (1, *, dim)
-    #         ],
-    #         dim=1,
-    #     )
-    #     prompts.append(prompt)
-    # prompts = torch.cat(prompts, dim=0)
     
     print(f'Using CTP={ctp}!')
+    
     if ctp == "end":
         prompts = torch.cat(
             [

@@ -1,4 +1,5 @@
 # The logs directory names 'run'
+slurm*
 run
 weights
 weights/*
@@ -6,6 +7,7 @@ run/*
 *.pt
 data
 data/*
+scripts
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
