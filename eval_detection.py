@@ -11,6 +11,7 @@ from utils_dir.metrics import ap_per_class, box_iou
 from utils_dir.processing_utils import map_labels_to_prototypes
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+from itertools import islice
 
 import warnings
 warnings.filterwarnings("ignore", message=".*antialias parameter.*")
@@ -88,31 +89,39 @@ def eval_detection(args, model, val_dataloader, device):
     sc = args.sc
     
     # Define superclass categories
-    if sc:
-        if args.dataset == 'simd':
-            names = {
-                0: 'car', 
-                1: 'aircraft',
-                2: 'boat',
-                3: 'others'} 
-            sc_cat = [[2,3,5,7,10,11,13],
-                      [0,1,8,9,12,14],
-                      [4],
-                      [6]]   
-        nc = len(names)
-    else:
-        names = model.classifier.get_categories()
-        nc = val_dataloader.dataset.get_category_number()
+    # if sc:
+    #     if args.dataset == 'simd':
+    #         names = {
+    #             0: 'car', 
+    #             1: 'aircraft',
+    #             2: 'boat',
+    #             3: 'others'} 
+    #         sc_cat = [[2,3,5,7,10,11,13],
+    #                   [0,1,8,9,12,14],
+    #                   [4],
+    #                   [6]]   
+    #     nc = len(names)
+    # else:
+    #     names = model.classifier.get_categories()
+    #     nc = val_dataloader.dataset.get_category_number()
+
+    names = model.classifier.get_categories()
+    nc = val_dataloader.dataset.get_category_number()
         
     print('names', names)
     print('nc', nc)
-    
+
+    num_boxes = None
     stats = []
     with torch.no_grad():
         for i, batch in tqdm(enumerate(val_dataloader), total=len(val_dataloader), leave=False):
+            # if i < 70:
+            #     continue
             if args.classification != 'mask':
                 images, boxes, labels, metadata = batch
                 boxes = boxes.to(device)
+                if i == 0:
+                    num_boxes = boxes.shape[1]
             else:
                 images, _, labels, masks, _ = batch
                 loc = masks.float().to(device)
@@ -127,6 +136,8 @@ def eval_detection(args, model, val_dataloader, device):
                 
                 keep = labels[si] > -1
                 targets = labels[si, keep]
+                #targets = labels[si][keep]
+                
                 targets_orig = targets.clone()
                 if sc:
                     targets = reclassify(targets, sc_cat) # Reclassify using superclasses
@@ -148,6 +159,7 @@ def eval_detection(args, model, val_dataloader, device):
                 if nl:
                     keep = keep.to(boxes.device)
                     tbox = custom_xywh2xyxy(boxes[si, keep, :])  # target boxes
+                    #tbox = custom_xywh2xyxy(boxes[si][keep])
                     tbox = tbox.to(targets.device)
                     labelsn = torch.cat((targets[..., None], tbox), 1)  # native-space labels
                     correct = process_batch(predn, labelsn, iouv)

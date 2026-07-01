@@ -1,5 +1,5 @@
 #!/bin/bash
-# #Slurm sbatch options
+##Slurm sbatch options
 #SBATCH --gres=gpu:volta:1
 
 # Loading the required modules
