@@ -82,8 +82,8 @@ def reclassify(labels, sc_cat):
 
 def eval_detection(args, model, val_dataloader, device):
     
-    # viz_dir = f'{args.save_dir}/figures'
-    # os.makedirs(viz_dir, exist_ok=True)
+    viz_dir = f'{args.save_dir}/figures'
+    os.makedirs(viz_dir, exist_ok=True)
     
     seen = 0
     iouv = torch.linspace(0.5, 0.95, 10, device=device)  # iou vector for mAP@0.5:0.95
@@ -199,44 +199,107 @@ def eval_detection(args, model, val_dataloader, device):
                             linewidth=2, edgecolor="lime", facecolor="none"
                         )
                         ax.add_patch(rect)
+                        # ax.text(
+                        #     x1, max(y1 - 5, 0),
+                        #     f"GT: {names[gt_label]}",
+                        #     color="white", fontsize=7, weight="bold",
+                        #     bbox=dict(facecolor="green", alpha=0.5, pad=1)
+                        # )
                         ax.text(
-                            x1, max(y1 - 5, 0),
-                            f"GT: {names[gt_label]}",
-                            color="white", fontsize=7, weight="bold",
-                            bbox=dict(facecolor="green", alpha=0.5, pad=1)
+                            x1,
+                            min(y2 + 5, img_np.shape[0] - 1),
+                            f"{names[gt_label]}",
+                            color="lime",
+                            fontsize=7,
+                            weight="bold",
+                            verticalalignment="top",
+                            bbox=dict(facecolor="black", alpha=0.5, pad=1)
                         )
+
+                # ### Draw predicted boxes (red)
+                # if pred is not None and len(pred) > 0:
+                #     pred = pred.detach().cpu()
+
+                #     for box in pred:
+                #         x1, y1, x2, y2, score, label = box.tolist()
+
+                #         # draw rectangle
+                #         rect = patches.Rectangle(
+                #             (x1, y1), x2 - x1, y2 - y1,
+                #             linewidth=2, edgecolor="red", facecolor="none"
+                #         )
+                #         ax.add_patch(rect)
+
+                #         # add label and score
+                #         ax.text(
+                #             x1, max(y1 - 5, 0),
+                #             f"{names[int(label)]}: {score:.2f}",
+                #             color="yellow", fontsize=8, weight="bold",
+                #             bbox=dict(facecolor="black", alpha=0.5, pad=1)
+                #         )
+
+                #         # ax.set_title(f"mAP@0.5 = {image_map50:.3f}", color='white', fontsize=12, weight='bold', backgroundcolor='black')
+                #         filename = os.path.basename(metadata["impath"][si])
+                #         ax.set_title(
+                #             f"{filename}\n mAP@0.5 = {image_map50:.3f}",
+                #             color='white',
+                #             fontsize=12,
+                #             weight='bold',
+                #             backgroundcolor='black'
+                #         )
 
                 ### Draw predicted boxes (red)
                 if pred is not None and len(pred) > 0:
-                    pred = pred.detach().cpu()
-
-                    for box in pred:
+                    pred_cpu = pred.detach().cpu()
+                
+                    # Compute best same-class IoU for each prediction
+                    pred_iou = {}
+                
+                    if nl > 0:
+                        pred_for_iou = pred.clone()
+                
+                        if sc:
+                            pred_for_iou[:, -1] = reclassify(pred_for_iou[:, -1], sc_cat)
+                
+                        ious = box_iou(tbox.to(pred_for_iou.device), pred_for_iou[:, :4])
+                        same_class = targets[:, None] == pred_for_iou[:, 5][None, :]
+                
+                        for pred_idx in range(pred_for_iou.shape[0]):
+                            valid_ious = ious[:, pred_idx][same_class[:, pred_idx]]
+                            pred_iou[pred_idx] = valid_ious.max().item() if valid_ious.numel() > 0 else 0.0
+                
+                    for pred_idx, box in enumerate(pred_cpu):
                         x1, y1, x2, y2, score, label = box.tolist()
-
-                        # draw rectangle
+                        best_iou = pred_iou.get(pred_idx, 0.0)
+                
                         rect = patches.Rectangle(
                             (x1, y1), x2 - x1, y2 - y1,
                             linewidth=2, edgecolor="red", facecolor="none"
                         )
                         ax.add_patch(rect)
-
-                        # add label and score
+                
+                        # ax.text(
+                        #     x1, max(y1 - 5, 0),
+                        #     f"{names[int(label)]}: {score:.2f}, IoU={best_iou:.2f}",
+                        #     color="yellow", fontsize=8, weight="bold",
+                        #     bbox=dict(facecolor="black", alpha=0.5, pad=1)
+                        # )
                         ax.text(
                             x1, max(y1 - 5, 0),
-                            f"{names[int(label)]}: {score:.2f}",
+                            f"{names[int(label)]}: {score:.2f}\nIoU: {best_iou:.2f}",
                             color="yellow", fontsize=8, weight="bold",
+                            linespacing=1.2,
                             bbox=dict(facecolor="black", alpha=0.5, pad=1)
                         )
-
-                        # ax.set_title(f"mAP@0.5 = {image_map50:.3f}", color='white', fontsize=12, weight='bold', backgroundcolor='black')
-                        filename = os.path.basename(metadata["impath"][si])
-                        ax.set_title(
-                            f"{filename}\n mAP@0.5 = {image_map50:.3f}",
-                            color='white',
-                            fontsize=12,
-                            weight='bold',
-                            backgroundcolor='black'
-                        )
+                
+                filename = os.path.basename(metadata["impath"][si])
+                ax.set_title(
+                    f"{filename}\nmAP@0.5 = {image_map50:.3f}",
+                    color='white',
+                    fontsize=12,
+                    weight='bold',
+                    backgroundcolor='black'
+                )
 
                 # Save instead of plt.show()
                 save_path = os.path.join(viz_dir, f"batch{i}_img{si}.png")

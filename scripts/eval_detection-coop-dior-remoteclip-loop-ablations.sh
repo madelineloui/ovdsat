@@ -18,13 +18,13 @@ COOP_NAME=dior_remoteclip_new
 
 for conf in 0.5
 do
-    for nctx in 4 8 16
+    for nctx in 4
     do
-        for ctp in middle end
+        for ctp in end
         do
-            for N in 1 5 10
+            for N in 30
             do
-                for M in 1 2 3
+                for M in 1
                 do
                     python -u eval_detection.py \
                         --dataset ${dataset} \
