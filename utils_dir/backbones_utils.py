@@ -43,6 +43,7 @@ PATH_CKPT_OPENCLIP14_FMOW = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/openc
 PATH_CKPT_LONGCLIP14_FMOW = '/home/gridsan/manderson/ovdsat/Long-CLIP/checkpoints/005-07--05_28_20_longclip.pt'
 PATH_CKPT_OPENCLIP14_REMOTE_FMOW = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-remote-fmow-summary-epoch100.pt'
 PATH_CKPT_OPENCLIP14_GEORS_FMOW = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-geors-fmow-summary-epoch100.pt'
+PATH_CKPT_DINOV3 = '/home/gridsan/manderson/ovdsat/weights/dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth'
 
 
 # For text-based models
@@ -103,6 +104,12 @@ def load_backbone(backbone_type):
         model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vitl14')
     elif backbone_type == 'dinov2-reg':
         model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vitl14_reg', force_reload=True)
+    elif backbone_type == 'dinov3':
+        model = torch.hub.load(
+            "facebookresearch/dinov3",
+            model="dinov3_vitl16",
+            weights=PATH_CKPT_DINOV3,
+        )
     elif backbone_type == 'clip-32':
         model = CLIPModel.from_pretrained(PATH_CKPT_CLIP32).vision_model
     elif backbone_type == 'clip-14':

@@ -199,12 +199,6 @@ def eval_detection(args, model, val_dataloader, device):
                             linewidth=2, edgecolor="lime", facecolor="none"
                         )
                         ax.add_patch(rect)
-                        # ax.text(
-                        #     x1, max(y1 - 5, 0),
-                        #     f"GT: {names[gt_label]}",
-                        #     color="white", fontsize=7, weight="bold",
-                        #     bbox=dict(facecolor="green", alpha=0.5, pad=1)
-                        # )
                         ax.text(
                             x1,
                             min(y2 + 5, img_np.shape[0] - 1),
@@ -215,38 +209,6 @@ def eval_detection(args, model, val_dataloader, device):
                             verticalalignment="top",
                             bbox=dict(facecolor="black", alpha=0.5, pad=1)
                         )
-
-                # ### Draw predicted boxes (red)
-                # if pred is not None and len(pred) > 0:
-                #     pred = pred.detach().cpu()
-
-                #     for box in pred:
-                #         x1, y1, x2, y2, score, label = box.tolist()
-
-                #         # draw rectangle
-                #         rect = patches.Rectangle(
-                #             (x1, y1), x2 - x1, y2 - y1,
-                #             linewidth=2, edgecolor="red", facecolor="none"
-                #         )
-                #         ax.add_patch(rect)
-
-                #         # add label and score
-                #         ax.text(
-                #             x1, max(y1 - 5, 0),
-                #             f"{names[int(label)]}: {score:.2f}",
-                #             color="yellow", fontsize=8, weight="bold",
-                #             bbox=dict(facecolor="black", alpha=0.5, pad=1)
-                #         )
-
-                #         # ax.set_title(f"mAP@0.5 = {image_map50:.3f}", color='white', fontsize=12, weight='bold', backgroundcolor='black')
-                #         filename = os.path.basename(metadata["impath"][si])
-                #         ax.set_title(
-                #             f"{filename}\n mAP@0.5 = {image_map50:.3f}",
-                #             color='white',
-                #             fontsize=12,
-                #             weight='bold',
-                #             backgroundcolor='black'
-                #         )
 
                 ### Draw predicted boxes (red)
                 if pred is not None and len(pred) > 0:
