@@ -86,7 +86,6 @@ NEW_CNAMES = {
     "SU-24":  "SU-24 aircraft",
     "Large Civil Transport/Utility": "Large Civil Transport/Utility aircraft",
     "Medium Civil Transport/Utility": "Medium Civil Transport/Utility aircraft",
-    "Military Bomber": "Military Bomber aircraft",
     "Military Fighter/Interceptor/Attack": "Military Fighter/Interceptor/Attack aircraft",
     "Military Trainer": "Military Trainer aircraft",
     "Military Transport/Utility/AWAC": "Military Transport/Utility/AWAC aircraft",
