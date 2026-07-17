@@ -10,7 +10,7 @@ def extract(filepath):
             if s.startswith("all "):
                 parts = s.split()
                 if len(parts) >= 6:
-                    return {"P": float(parts[-4]), "R": float(parts[-3]), "mAP50": float(parts[-2])}
+                    return {"P": float(parts[-4]), "R": float(parts[-3]), "mAP50": float(parts[-2]), "mAP50-95": float(parts[-1])}
     return None
 
 def find_txt_in_subdirs(path, path_suffixes=None):
@@ -81,14 +81,14 @@ def main(root_dir, suffixes=None):
         print("No results found.")
         return
 
-    print("N:     " + "  ".join(f"{N:>10}" for N in Ns))
-    for metric in ["P", "R", "mAP50"]:
+    print("N:     " + "  ".join(f"{N:>15}" for N in Ns))
+    for metric in ["P", "R", "mAP50", "mAP50-95"]:
         row = []
         for N in Ns:
             vals = [r[metric] for r in data[N]]
             std = stdev(vals) if len(vals) > 1 else 0.0
             row.append(f"{mean(vals):.4f} ± {std:.4f}")
-        print(f"{metric:>5}: " + "  ".join(f"{v:>10}" for v in row))
+        print(f"{metric:>8}: " + "  ".join(f"{v:>10}" for v in row))
 
 if __name__ == "__main__":
     root = sys.argv[1]

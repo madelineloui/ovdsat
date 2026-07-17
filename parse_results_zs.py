@@ -11,7 +11,7 @@ def extract(filepath):
             if s.startswith("all "):
                 parts = s.split()
                 if len(parts) >= 6:
-                    return {"P": float(parts[-4]), "R": float(parts[-3]), "mAP50": float(parts[-2])}
+                    return {"P": float(parts[-4]), "R": float(parts[-3]), "mAP50": float(parts[-2]), "mAP50-95": float(parts[-1])}
     return None
 
 
@@ -36,10 +36,10 @@ def main(root_dir):
         print("No zeroshot folders found.")
         return
 
-    for metric in ["P", "R", "mAP50"]:
+    for metric in ["P", "R", "mAP50", "mAP50-95"]:
         vals = [r[metric] for r in rows]
         std = stdev(vals) if len(vals) > 1 else 0.0
-        print(f"{metric:>5}: {mean(vals):.4f} ± {std:.4f}")
+        print(f"{metric:>8}: {mean(vals):.4f} ± {std:.4f}")
 
 
 if __name__ == "__main__":
