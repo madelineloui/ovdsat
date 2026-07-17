@@ -20,14 +20,13 @@ def get_base_new_classes(dataset):
     elif dataset == 'nwpu':
         base_classes = ['airplane', 'ship', 'storage tank', 'baseball diamond', 'tennis court', 'basketball court', 'ground track field', 'harbor', 'vehicle']
         new_classes = ['bridge']
-    if dataset == 'mar':
+    elif dataset == 'mar':
         base_classes = []
-        new_classes = [
-            "A1", "A2", "A3", "A4", "A5",
-            "A6", "A7", "A8", "A9", "A10",
-            "A11", "A12", "A13", "A14", "A15",
-            "A16", "A17", "A18", "A19", "A20"
-        ]
+        new_classes = ['B-1B', 'B-52', 'C-130', 'C-17', 'C-5', 'E-3', 'E-8', 'F-15', 'F-16', 'F-22', 'FA-18', 'KC-1', 'KC-135', 'P-3C', 'SU-24', 'SU-34', 'SU-35', 'TU-160', 'TU-22', 'TU-95']
+    elif dataset == 'rareplanes':
+        base_classes = []
+        new_classes = ['Large Civil Transport/Utility', 'Medium Civil Transport/Utility', 'Military Bomber', 'Military Fighter/Interceptor/Attack', 'Military Trainer', 'Military Transport/Utility/AWAC', 'Small Civil Transport/Utility']
+    
 
     return base_classes, new_classes
 

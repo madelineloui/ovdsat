@@ -84,6 +84,13 @@ NEW_CNAMES = {
     "KC-1":   "KC-1 aircraft",
     "SU-34":  "SU-34 aircraft",
     "SU-24":  "SU-24 aircraft",
+    "Large Civil Transport/Utility": "Large Civil Transport/Utility aircraft",
+    "Medium Civil Transport/Utility": "Medium Civil Transport/Utility aircraft",
+    "Military Bomber": "Military Bomber aircraft",
+    "Military Fighter/Interceptor/Attack": "Military Fighter/Interceptor/Attack aircraft",
+    "Military Trainer": "Military Trainer aircraft",
+    "Military Transport/Utility/AWAC": "Military Transport/Utility/AWAC aircraft",
+    "Small Civil Transport/Utility": "Small Civil Transport/Utility aircraft",
 }
 
 def build_background_text_prototypes(args, tokenizer, model, device):

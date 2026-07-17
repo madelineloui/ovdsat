@@ -56,9 +56,17 @@ def coco_to_seg(annotation_file, image_directory, save_path):
                 mask[y:y + h, x:x + w] = 255
 
             # Save the image and mask
+            # image_filename_without_ext = os.path.splitext(image_filename)[0]
+            # mask_filename = f"{image_filename_without_ext}.mask{os.path.splitext(image_filename)[1]}"
+            # cv2.imwrite(os.path.join(category_directory, image_filename), image)
+            # cv2.imwrite(os.path.join(category_directory, mask_filename), mask)
+
+            # Save the image and mask (make .jpg)
             image_filename_without_ext = os.path.splitext(image_filename)[0]
-            mask_filename = f"{image_filename_without_ext}.mask{os.path.splitext(image_filename)[1]}"
-            cv2.imwrite(os.path.join(category_directory, image_filename), image)
+            output_image_filename = f"{image_filename_without_ext}.jpg"
+            mask_filename = f"{image_filename_without_ext}.mask.jpg"
+            
+            cv2.imwrite(os.path.join(category_directory, output_image_filename), image)
             cv2.imwrite(os.path.join(category_directory, mask_filename), mask)
 
         print(f"Processed category: {category_name}")
