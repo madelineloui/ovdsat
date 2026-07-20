@@ -20,7 +20,7 @@ do
     do
         for N in 1 5 10
         do
-            python eval_detection-sample.py \
+            python eval_detection.py \
                 --dataset ${dataset} \
                 --val_root_dir ${DATA_DIR}/${dataset}/PNGImages \
                 --save_dir run/eval/detection/${dataset}/${finetune}/backbone_${backbone}_${finetune_type}/N${N}-${M} \

@@ -59,11 +59,9 @@ def load_coco_annotations(annotation_file, dataset):
         label_to_class[normalize_label(prompt_name)] = class_id
 
     annotations_by_image = defaultdict(list)
-
     for annotation in coco["annotations"]:
         if annotation.get("iscrowd", 0):
             continue
-
         if annotation["category_id"] in category_id_to_class:
             annotations_by_image[annotation["image_id"]].append(annotation)
 
@@ -71,21 +69,17 @@ def load_coco_annotations(annotation_file, dataset):
 
 
 def load_ground_truth(image_id, annotations_by_image, category_id_to_class):
-    boxes = []
-    labels = []
+    boxes, labels = [], []
 
     for annotation in annotations_by_image.get(image_id, []):
         x, y, width, height = annotation["bbox"]
-
         if width <= 0 or height <= 0:
             continue
-
         boxes.append([x, y, x + width, y + height])
         labels.append(category_id_to_class[annotation["category_id"]])
 
     boxes = torch.tensor(boxes, dtype=torch.float32).reshape(-1, 4)
     labels = torch.tensor(labels, dtype=torch.float32)
-
     return boxes, labels
 
 
@@ -119,7 +113,6 @@ def parse_predictions(text, width, height, label_to_class):
             continue
 
         label = normalize_label(item["label"])
-
         if label not in label_to_class:
             unknown_labels.add(str(item["label"]))
             continue
@@ -164,8 +157,7 @@ def process_batch(detections, labels, iouv):
             continue
 
         matches = torch.cat(
-            (torch.stack(matches, 1), iou[matches[0], matches[1]][:, None]),
-            1,
+            (torch.stack(matches, 1), iou[matches[0], matches[1]][:, None]), 1
         ).cpu().numpy()
 
         if matches.shape[0] > 1:
@@ -181,7 +173,6 @@ def process_batch(detections, labels, iouv):
 
 def generate_predictions(model, processor, image, categories, max_new_tokens):
     category_text = ", ".join(categories)
-
     prompt = (
         "Detect every visible object belonging to these categories: "
         f"{category_text}. Return only a JSON array. Each item must have exactly this format: "
@@ -190,15 +181,13 @@ def generate_predictions(model, processor, image, categories, max_new_tokens):
         "from 0 to 1000. Return [] if no listed objects are visible."
     )
 
-    messages = [
-        {
-            "role": "user",
-            "content": [
-                {"type": "image", "image": image},
-                {"type": "text", "text": prompt},
-            ],
-        }
-    ]
+    messages = [{
+        "role": "user",
+        "content": [
+            {"type": "image", "image": image},
+            {"type": "text", "text": prompt},
+        ],
+    }]
 
     inputs = processor.apply_chat_template(
         messages,
@@ -225,7 +214,6 @@ def generate_predictions(model, processor, image, categories, max_new_tokens):
         generated_ids[0, input_length:],
         skip_special_tokens=False,
     )
-
     parsed_response = processor.parse_response(raw_response)
 
     if isinstance(parsed_response, dict):
@@ -273,24 +261,14 @@ def get_best_same_class_ious(predictions, gt_boxes, gt_classes):
 
 
 def save_detection_figure(
-    image,
-    image_filename,
-    predictions,
-    gt_boxes,
-    gt_classes,
-    names,
-    precision,
-    recall,
-    f1,
-    figures_dir,
-    figure_dpi,
+    image, image_filename, predictions, gt_boxes, gt_classes, names,
+    precision, recall, f1, figures_dir, figure_dpi,
 ):
     _, image_height = image.size
 
     predictions = predictions.detach().cpu()
     gt_boxes = gt_boxes.detach().cpu()
     gt_classes = gt_classes.detach().cpu()
-
     best_ious = get_best_same_class_ious(predictions, gt_boxes, gt_classes)
 
     fig, ax = plt.subplots(figsize=(10, 10))
@@ -300,16 +278,10 @@ def save_detection_figure(
         x1, y1, x2, y2 = gt_box.tolist()
         class_id = int(gt_class.item())
 
-        ax.add_patch(
-            patches.Rectangle(
-                (x1, y1),
-                x2 - x1,
-                y2 - y1,
-                edgecolor="lime",
-                facecolor="none",
-                linewidth=2,
-            )
-        )
+        ax.add_patch(patches.Rectangle(
+            (x1, y1), x2 - x1, y2 - y1,
+            edgecolor="lime", facecolor="none", linewidth=2,
+        ))
 
         ax.text(
             x1,
@@ -326,16 +298,10 @@ def save_detection_figure(
         x1, y1, x2, y2 = prediction[:4].tolist()
         class_id = int(prediction[5].item())
 
-        ax.add_patch(
-            patches.Rectangle(
-                (x1, y1),
-                x2 - x1,
-                y2 - y1,
-                edgecolor="red",
-                facecolor="none",
-                linewidth=2,
-            )
-        )
+        ax.add_patch(patches.Rectangle(
+            (x1, y1), x2 - x1, y2 - y1,
+            edgecolor="red", facecolor="none", linewidth=2,
+        ))
 
         ax.text(
             x1,
@@ -406,9 +372,7 @@ def calculate_class_metrics(correct, confidence, predicted_classes, target_class
 
         if class_p[class_id] + class_r[class_id] > 0:
             class_f1[class_id] = (
-                2
-                * class_p[class_id]
-                * class_r[class_id]
+                2 * class_p[class_id] * class_r[class_id]
                 / (class_p[class_id] + class_r[class_id])
             )
 
@@ -424,18 +388,25 @@ def calculate_class_metrics(correct, confidence, predicted_classes, target_class
     return class_p, class_r, class_f1, class_ap50, class_ap5095
 
 
-def calculate_subset_metrics(indices, p, r, f1, ap50, ap5095):
-    if not indices:
-        return 0.0, 0.0, 0.0, 0.0, 0.0
-
+def calculate_subset_metrics(indices, nt, p, r, f1, ap50, ap5095):
     indices = np.asarray(indices, dtype=int)
 
+    if len(indices) == 0:
+        return 0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+    target_indices = indices[nt[indices] > 0]
+    num_instances = int(nt[indices].sum())
+
+    if len(target_indices) == 0:
+        return num_instances, 0.0, 0.0, 0.0, 0.0, 0.0
+
     return (
-        float(p[indices].mean()),
-        float(r[indices].mean()),
-        float(f1[indices].mean()),
-        float(ap50[indices].mean()),
-        float(ap5095[indices].mean()),
+        num_instances,
+        float(p[target_indices].mean()),
+        float(r[target_indices].mean()),
+        float(f1[target_indices].mean()),
+        float(ap50[target_indices].mean()),
+        float(ap5095[target_indices].mean()),
     )
 
 
@@ -473,7 +444,6 @@ def evaluate(args):
         dtype=model_dtype,
         attn_implementation="sdpa",
     )
-
     model.eval()
 
     iouv = torch.linspace(0.5, 0.95, 10, device=device)
@@ -489,6 +459,7 @@ def evaluate(args):
 
     with open(predictions_file, "w", encoding="utf-8") as output_file:
         for image_item in tqdm(image_info, total=len(image_info)):
+        #for image_item in tqdm(image_info[:5], total=min(len(image_info), 5)):
             image_filename = image_item["file_name"]
             image_path = Path(args.val_root_dir) / image_filename
 
@@ -538,47 +509,40 @@ def evaluate(args):
                 calculate_image_metrics(correct, len(predictions), len(gt_classes))
             )
 
-            save_detection_figure(
-                image,
-                Path(image_filename).name,
-                predictions,
-                gt_boxes,
+            # save_detection_figure(
+            #     image,
+            #     Path(image_filename).name,
+            #     predictions,
+            #     gt_boxes,
+            #     gt_classes,
+            #     names,
+            #     image_precision,
+            #     image_recall,
+            #     image_f1,
+            #     figures_dir,
+            #     args.figure_dpi,
+            # )
+
+            stats.append((
+                correct,
+                predictions[:, 4],
+                predictions[:, 5],
                 gt_classes,
-                names,
-                image_precision,
-                image_recall,
-                image_f1,
-                figures_dir,
-                args.figure_dpi,
-            )
+            ))
 
-            stats.append(
-                (
-                    correct,
-                    predictions[:, 4],
-                    predictions[:, 5],
-                    gt_classes,
-                )
-            )
-
-            output_file.write(
-                json.dumps(
-                    {
-                        "image_id": image_item["id"],
-                        "image": str(image_path),
-                        "raw_response": raw_response,
-                        "response": generated_text,
-                        "predictions": predictions.detach().cpu().tolist(),
-                        "precision_0.5": image_precision,
-                        "recall_0.5": image_recall,
-                        "f1_0.5": image_f1,
-                        "tp_0.5": image_tp,
-                        "fp_0.5": image_fp,
-                        "fn_0.5": image_fn,
-                    }
-                )
-                + "\n"
-            )
+            output_file.write(json.dumps({
+                "image_id": image_item["id"],
+                "image": str(image_path),
+                "raw_response": raw_response,
+                "response": generated_text,
+                "predictions": predictions.detach().cpu().tolist(),
+                "precision_0.5": image_precision,
+                "recall_0.5": image_recall,
+                "f1_0.5": image_f1,
+                "tp_0.5": image_tp,
+                "fp_0.5": image_fp,
+                "fn_0.5": image_fn,
+            }) + "\n")
 
             output_file.flush()
             seen += 1
@@ -612,62 +576,76 @@ def evaluate(args):
         mp = mr = mf1 = map50 = map5095 = 0.0
 
     base_classes, new_classes = get_base_new_classes(args.dataset)
-
     base_names = {normalize_label(name) for name in base_classes}
     new_names = {normalize_label(name) for name in new_classes}
 
     base_indices = [
-        i
-        for i, name in enumerate(names)
+        i for i, name in enumerate(names)
         if normalize_label(name) in base_names
     ]
-
     new_indices = [
-        i
-        for i, name in enumerate(names)
+        i for i, name in enumerate(names)
         if normalize_label(name) in new_names
     ]
 
-    mp_base, mr_base, mf1_base, map50_base, map5095_base = calculate_subset_metrics(
-        base_indices,
-        class_p,
-        class_r,
-        class_f1,
-        class_ap50,
-        class_ap5095,
+    base_instances, mp_base, mr_base, mf1_base, map50_base, map5095_base = (
+        calculate_subset_metrics(
+            base_indices,
+            nt,
+            class_p,
+            class_r,
+            class_f1,
+            class_ap50,
+            class_ap5095,
+        )
     )
 
-    mp_new, mr_new, mf1_new, map50_new, map5095_new = calculate_subset_metrics(
-        new_indices,
-        class_p,
-        class_r,
-        class_f1,
-        class_ap50,
-        class_ap5095,
+    new_instances, mp_new, mr_new, mf1_new, map50_new, map5095_new = (
+        calculate_subset_metrics(
+            new_indices,
+            nt,
+            class_p,
+            class_r,
+            class_f1,
+            class_ap50,
+            class_ap5095,
+        )
     )
 
-    print_format = "%22s" + "%11i" * 2 + "%11.4g" * 5
+    class_width = max(
+        len("Class"),
+        len("total base"),
+        len("total new"),
+        max(len(name) for name in names),
+    )
 
-    header = (
-        "%22s" + "%11s" * 7
-    ) % (
-        "Class",
-        "Images",
-        "Instances",
-        "P",
-        "R",
-        "F1",
-        "mAP50",
-        "mAP50-95",
+    header_format = (
+        f"{{:<{class_width}}} "
+        f"{{:>8}} {{:>10}} {{:>10}} {{:>10}} "
+        f"{{:>10}} {{:>10}} {{:>10}}"
+    )
+
+    row_format = (
+        f"{{:<{class_width}}} "
+        f"{{:>8d}} {{:>10d}} {{:>10.4g}} {{:>10.4g}} "
+        f"{{:>10.4g}} {{:>10.4g}} {{:>10.4g}}"
     )
 
     lines = [
-        header,
-        print_format
-        % (
+        header_format.format(
+            "Class",
+            "Images",
+            "Instances",
+            "P",
+            "R",
+            "F1",
+            "mAP50",
+            "mAP50-95",
+        ),
+        row_format.format(
             "all",
             seen,
-            nt.sum(),
+            int(nt.sum()),
             mp,
             mr,
             mf1,
@@ -677,54 +655,47 @@ def evaluate(args):
     ]
 
     for class_id, class_name in enumerate(names):
-        lines.append(
-            print_format
-            % (
-                class_name,
-                seen,
-                nt[class_id],
-                class_p[class_id],
-                class_r[class_id],
-                class_f1[class_id],
-                class_ap50[class_id],
-                class_ap5095[class_id],
-            )
-        )
+        lines.append(row_format.format(
+            class_name,
+            seen,
+            int(nt[class_id]),
+            class_p[class_id],
+            class_r[class_id],
+            class_f1[class_id],
+            class_ap50[class_id],
+            class_ap5095[class_id],
+        ))
 
-    lines.append(
-        print_format
-        % (
+    lines.extend([
+        row_format.format(
             "total base",
             seen,
-            nt.sum(),
+            base_instances,
             mp_base,
             mr_base,
             mf1_base,
             map50_base,
             map5095_base,
-        )
-    )
-
-    lines.append(
-        print_format
-        % (
+        ),
+        row_format.format(
             "total new",
             seen,
-            nt.sum(),
+            new_instances,
             mp_new,
             mr_new,
             mf1_new,
             map50_new,
             map5095_new,
-        )
-    )
+        ),
+    ])
 
     results_file = save_dir / "results.txt"
+    results_text = "\n".join(lines) + "\n"
 
     with open(results_file, "w", encoding="utf-8") as file:
-        file.write("\n".join(lines) + "\n")
+        file.write(results_text)
 
-    print("\n" + "\n".join(lines))
+    print(f"\n{results_text}", end="")
     print(f"\nSaved metrics to: {results_file}")
     print(f"Saved predictions to: {predictions_file}")
     print(f"Saved figures to: {figures_dir}")
@@ -732,7 +703,6 @@ def evaluate(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-
     parser.add_argument("--dataset", type=str, required=True)
     parser.add_argument("--val_root_dir", type=str, required=True)
     parser.add_argument("--val_annotations_file", type=str, required=True)
@@ -741,5 +711,4 @@ if __name__ == "__main__":
     parser.add_argument("--max_new_tokens", type=int, default=512)
     parser.add_argument("--max_images", type=int, default=None)
     parser.add_argument("--figure_dpi", type=int, default=200)
-
     evaluate(parser.parse_args())
