@@ -32,6 +32,10 @@ def coco_to_seg(annotation_file, image_directory, save_path):
         # Get the category information
         category_info = coco.loadCats(category_id)[0]
         category_name = category_info['name']
+
+        # To avoid issues with Rareplanes category names with / in them
+        category_name = category_name.replace("/", "_")
+
         category_directory = os.path.join(save_path, category_name)
 
         # Create a directory for the category

@@ -197,6 +197,123 @@ def build_background_prototypes(args, model, device, patch_size):
     return category_dict
 
 
+# def build_object_prototypes(args, model, init_data, device, patch_size, crop_path=None):
+#     '''
+#     Build object prototypes by extracting the features containing the objects and averaging them for each class, separately.
+
+#     Args:
+#         args (argparse.Namespace): Input arguments
+#         model (torch.nn.Module): Backbone model
+#         device (str): Device to run the model on
+#         patch_size (int): Patch size of the backbone
+#     '''
+
+#     # Retrieve masked images and their classes
+#     class2images = {}
+#     classes = []
+#     masked_imgs = []
+    
+#     if crop_path:
+#         for f in glob(osp.join(crop_path, '**/*'), recursive=True):
+#             if osp.isfile(f):
+#                 image_file = f
+#                 class_name = osp.basename(osp.dirname(f))
+#                 classes = classes + [class_name] if class_name not in classes else classes
+#                 if class_name not in class2images:
+#                     class2images[class_name] = []
+#                 class2images[class_name.strip()].append(image_file)
+        
+#         class2tokens = {}
+#         for cls, images in tqdm(class2images.items()):
+#             class2tokens[cls] = []
+#             for image_file in images:
+#                 # Read image and mask
+#                 #print(image_file)
+#                 image = Image.open(image_file)
+#                 image, _ = preprocess(image, None, backbone_type=args.backbone_type, target_size=(224,224), patch_size=patch_size)
+
+#                 # Extract features and reshape to 2D image
+#                 features = extract_backbone_features(image.to(device), model, args.backbone_type, scale_factor=args.scale_factor)
+#                 #print('\nFEATURES:', features.shape, '\n')
+#                 _, K, D = features.shape
+#                 p_w = p_h = int(K**0.5)
+#                 features = features.reshape(p_h, p_w, -1).permute(2, 0, 1)
+#                 # print('DEBUG features')
+#                 # print(features.shape)
+
+#                 # Average the features of the masked patches
+#                 avg_patch_token = features.mean(dim=(1, 2))
+#                 # print('DEBUG avg_patch_token')
+#                 # print(avg_patch_token.shape)
+#                 class2tokens[cls].append(avg_patch_token)
+                
+#     else:
+#         for f in glob(osp.join(init_data, '**/*'), recursive=True):
+#             if osp.isfile(f) and 'mask' not in f:
+#                 image_file = f
+#                 class_name = osp.basename(osp.dirname(f))
+#                 mask_file = osp.splitext(f)[0] + '.mask.jpg'
+#                 if osp.splitext(args.annotations_file)[0] in mask_file:
+#                     continue
+
+#                 classes = classes + [class_name] if class_name not in classes else classes
+#                 if class_name not in class2images:
+#                     class2images[class_name] = []
+#                 class2images[class_name.strip()].append((image_file, mask_file)) 
+
+#                 # DEBUGGING
+#                 # img = cv2.imread(image_file)
+#                 # msk = cv2.imread(mask_file)
+#                 # if img is None: print("bad img:", image_file)
+#                 # if msk is None: print("bad mask:", mask_file)
+
+#                 masked_imgs.append(Image.fromarray(cv2.imread(image_file) * (cv2.imread(mask_file) != 0)))
+
+#         class2tokens = {}
+#         for cls, images in tqdm(class2images.items()):
+#             class2tokens[cls] = []
+#             for image_file, mask_file in images:
+#                 # Read image and mask
+#                 image = Image.open(image_file)
+#                 mask = Image.open(mask_file)
+#                 image, mask = preprocess(image, mask, backbone_type=args.backbone_type, target_size=args.target_size, patch_size=patch_size)
+#                 mask = torch.as_tensor(np.array(mask) / 255).to(device)
+
+#                 # Extract features and reshape to 2D image
+#                 features = extract_backbone_features(image.to(device), model, args.backbone_type, scale_factor=args.scale_factor)
+#                 #print('\nFEATURES:', features.shape, '\n')
+#                 _, K, D = features.shape
+#                 p_w = p_h = int(K**0.5)
+#                 features = features.reshape(p_h, p_w, -1).permute(2, 0, 1)
+
+#                 # If the mask is empty, skip the image
+#                 if mask.sum() <= 0.5:
+#                     continue
+
+#                 # Average the features of the masked patches
+#                 avg_patch_token = (mask.unsqueeze(0) * features).flatten(1).sum(1) / mask.sum()
+#                 # print('DEBUG avg_patch_token')
+#                 # print(avg_patch_token.shape)
+#                 class2tokens[cls].append(avg_patch_token)
+    
+#     # Average the features of all objects in each class
+#     for cls in class2tokens:
+#         # if tensor is empty set to zeros
+#         if len(class2tokens[cls]) == 0:
+#             class2tokens[cls] = torch.zeros(D, device=device)
+#         else:
+#             class2tokens[cls] = torch.stack(class2tokens[cls]).mean(dim=0)
+
+#     prototypes = F.normalize(torch.stack([class2tokens[c] for c in classes]), dim=1)    # Normalize the feature vectors
+
+#     # Create dictionary and save
+#     category_dict = {
+#         'prototypes': prototypes.cpu(),
+#         'label_names': classes
+#     }
+#     return category_dict
+
+
 def build_object_prototypes(args, model, init_data, device, patch_size, crop_path=None):
     '''
     Build object prototypes by extracting the features containing the objects and averaging them for each class, separately.
@@ -208,11 +325,18 @@ def build_object_prototypes(args, model, init_data, device, patch_size, crop_pat
         patch_size (int): Patch size of the backbone
     '''
 
+    # Map generated folder names with "_" back to original COCO names with "/"
+    with open(args.annotations_file, "r") as f:
+        folder_to_class_name = {
+            category["name"].replace("/", "_"): category["name"]
+            for category in json.load(f)["categories"]
+        }
+
     # Retrieve masked images and their classes
     class2images = {}
     classes = []
     masked_imgs = []
-    
+
     if crop_path:
         for f in glob(osp.join(crop_path, '**/*'), recursive=True):
             if osp.isfile(f):
@@ -222,52 +346,60 @@ def build_object_prototypes(args, model, init_data, device, patch_size, crop_pat
                 if class_name not in class2images:
                     class2images[class_name] = []
                 class2images[class_name.strip()].append(image_file)
-        
+
         class2tokens = {}
         for cls, images in tqdm(class2images.items()):
             class2tokens[cls] = []
             for image_file in images:
                 # Read image and mask
-                #print(image_file)
                 image = Image.open(image_file)
-                image, _ = preprocess(image, None, backbone_type=args.backbone_type, target_size=(224,224), patch_size=patch_size)
+                image, _ = preprocess(
+                    image,
+                    None,
+                    backbone_type=args.backbone_type,
+                    target_size=(224, 224),
+                    patch_size=patch_size
+                )
 
                 # Extract features and reshape to 2D image
-                features = extract_backbone_features(image.to(device), model, args.backbone_type, scale_factor=args.scale_factor)
-                #print('\nFEATURES:', features.shape, '\n')
+                features = extract_backbone_features(
+                    image.to(device),
+                    model,
+                    args.backbone_type,
+                    scale_factor=args.scale_factor
+                )
                 _, K, D = features.shape
                 p_w = p_h = int(K**0.5)
                 features = features.reshape(p_h, p_w, -1).permute(2, 0, 1)
-                # print('DEBUG features')
-                # print(features.shape)
 
                 # Average the features of the masked patches
                 avg_patch_token = features.mean(dim=(1, 2))
-                # print('DEBUG avg_patch_token')
-                # print(avg_patch_token.shape)
                 class2tokens[cls].append(avg_patch_token)
-                
+
     else:
         for f in glob(osp.join(init_data, '**/*'), recursive=True):
             if osp.isfile(f) and 'mask' not in f:
                 image_file = f
-                class_name = osp.basename(osp.dirname(f))
+
+                folder_name = osp.basename(osp.dirname(f))
+                class_name = folder_to_class_name[folder_name]
+
                 mask_file = osp.splitext(f)[0] + '.mask.jpg'
+
                 if osp.splitext(args.annotations_file)[0] in mask_file:
                     continue
 
                 classes = classes + [class_name] if class_name not in classes else classes
                 if class_name not in class2images:
                     class2images[class_name] = []
-                class2images[class_name.strip()].append((image_file, mask_file)) 
+                class2images[class_name.strip()].append((image_file, mask_file))
 
-                # DEBUGGING
-                # img = cv2.imread(image_file)
-                # msk = cv2.imread(mask_file)
-                # if img is None: print("bad img:", image_file)
-                # if msk is None: print("bad mask:", mask_file)
-
-                masked_imgs.append(Image.fromarray(cv2.imread(image_file) * (cv2.imread(mask_file) != 0)))
+                masked_imgs.append(
+                    Image.fromarray(
+                        cv2.imread(image_file) *
+                        (cv2.imread(mask_file) != 0)
+                    )
+                )
 
         class2tokens = {}
         for cls, images in tqdm(class2images.items()):
@@ -276,12 +408,22 @@ def build_object_prototypes(args, model, init_data, device, patch_size, crop_pat
                 # Read image and mask
                 image = Image.open(image_file)
                 mask = Image.open(mask_file)
-                image, mask = preprocess(image, mask, backbone_type=args.backbone_type, target_size=args.target_size, patch_size=patch_size)
+                image, mask = preprocess(
+                    image,
+                    mask,
+                    backbone_type=args.backbone_type,
+                    target_size=args.target_size,
+                    patch_size=patch_size
+                )
                 mask = torch.as_tensor(np.array(mask) / 255).to(device)
 
                 # Extract features and reshape to 2D image
-                features = extract_backbone_features(image.to(device), model, args.backbone_type, scale_factor=args.scale_factor)
-                #print('\nFEATURES:', features.shape, '\n')
+                features = extract_backbone_features(
+                    image.to(device),
+                    model,
+                    args.backbone_type,
+                    scale_factor=args.scale_factor
+                )
                 _, K, D = features.shape
                 p_w = p_h = int(K**0.5)
                 features = features.reshape(p_h, p_w, -1).permute(2, 0, 1)
@@ -291,26 +433,31 @@ def build_object_prototypes(args, model, init_data, device, patch_size, crop_pat
                     continue
 
                 # Average the features of the masked patches
-                avg_patch_token = (mask.unsqueeze(0) * features).flatten(1).sum(1) / mask.sum()
-                # print('DEBUG avg_patch_token')
-                # print(avg_patch_token.shape)
+                avg_patch_token = (
+                    (mask.unsqueeze(0) * features)
+                    .flatten(1)
+                    .sum(1)
+                    / mask.sum()
+                )
                 class2tokens[cls].append(avg_patch_token)
-    
+
     # Average the features of all objects in each class
     for cls in class2tokens:
-        # if tensor is empty set to zeros
         if len(class2tokens[cls]) == 0:
             class2tokens[cls] = torch.zeros(D, device=device)
         else:
             class2tokens[cls] = torch.stack(class2tokens[cls]).mean(dim=0)
 
-    prototypes = F.normalize(torch.stack([class2tokens[c] for c in classes]), dim=1)    # Normalize the feature vectors
+    prototypes = F.normalize(
+        torch.stack([class2tokens[c] for c in classes]),
+        dim=1
+    )
 
-    # Create dictionary and save
     category_dict = {
         'prototypes': prototypes.cpu(),
         'label_names': classes
     }
+
     return category_dict
 
 

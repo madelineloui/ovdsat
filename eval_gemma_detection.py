@@ -538,19 +538,19 @@ def evaluate(args):
                 calculate_image_metrics(correct, len(predictions), len(gt_classes))
             )
 
-            # save_detection_figure(
-            #     image,
-            #     Path(image_filename).name,
-            #     predictions,
-            #     gt_boxes,
-            #     gt_classes,
-            #     names,
-            #     image_precision,
-            #     image_recall,
-            #     image_f1,
-            #     figures_dir,
-            #     args.figure_dpi,
-            # )
+            save_detection_figure(
+                image,
+                Path(image_filename).name,
+                predictions,
+                gt_boxes,
+                gt_classes,
+                names,
+                image_precision,
+                image_recall,
+                image_f1,
+                figures_dir,
+                args.figure_dpi,
+            )
 
             stats.append(
                 (
