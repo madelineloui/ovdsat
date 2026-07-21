@@ -13,7 +13,7 @@ DATA_DIR=data
 dataset=dior
 prototype_type=text_prototypes #init_prototypes or train
 finetune_type=boxes #masks or boxes
-conf=0.25
+conf=0.5
 
 for M in 1 2 3
 do
