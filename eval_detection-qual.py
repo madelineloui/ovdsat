@@ -113,7 +113,7 @@ def eval_detection(args, model, val_dataloader, device):
     stats = []
     with torch.no_grad():
         for i, batch in tqdm(enumerate(val_dataloader), total=len(val_dataloader), leave=False):
-            if i > 3: # TODO debug
+            if i > 5: # TODO debug
                 break
             if args.classification != 'mask':
                 images, boxes, labels, metadata = batch
@@ -129,144 +129,221 @@ def eval_detection(args, model, val_dataloader, device):
             preds = model(images, iou_thr=args.iou_thr, conf_thres=args.conf_thres, aggregation=args.aggregation)
 
             for si, pred in enumerate(preds):
-                
                 keep = labels[si] > -1
                 targets = labels[si, keep]
                 targets_orig = targets.clone()
+
                 if sc:
-                    targets = reclassify(targets, sc_cat) # Reclassify using superclasses
-                nl, npr = targets.shape[0], pred.shape[0]  # number of labels, predictions
-                correct = torch.zeros(npr, len(iouv), dtype=torch.bool, device=device)  # init
+                    targets = reclassify(targets, sc_cat)
+
+                nl = targets.shape[0]
+                npr = pred.shape[0]
+                correct = torch.zeros(npr, len(iouv), dtype=torch.bool, device=device)
                 seen += 1
 
-                if npr == 0:
-                    if nl:
-                        stats.append((correct, *torch.zeros((2, 0), device=device), targets[:]))
-                    continue
-                    
-                predn = pred.clone()
-                
-                # Reclassify using superclasses
-                if sc:
-                    predn[:,-1] = reclassify(predn[:,-1], sc_cat)
-                    
+                # Initialize target boxes even when there are no ground-truth objects
+                tbox = torch.empty((0, 4), dtype=torch.float32, device=device)
+
                 if nl:
                     keep = keep.to(boxes.device)
-                    tbox = custom_xywh2xyxy(boxes[si, keep, :])  # target boxes
+                    tbox = custom_xywh2xyxy(boxes[si, keep, :])
                     tbox = tbox.to(targets.device)
-                    labelsn = torch.cat((targets[..., None], tbox), 1)  # native-space labels
-                    correct = process_batch(predn, labelsn, iouv)
 
-                stats.append((correct, pred[:, 4], pred[:, 5], targets_orig[:]))
-                
-                
-                ### Compute exact per-image AP@0.5 (for viz)
-                # Extract per-image stats
-                correct_img = correct[:, [0]].cpu().numpy()  # Only IoU=0.5
-                conf_img = pred[:, 4].detach().cpu().numpy()
-                pred_cls_img = pred[:, 5].detach().cpu().numpy()
+                if npr == 0:
+                    # Keep the image in the evaluation statistics, but do not
+                    # skip visualization. This ensures an empty prediction
+                    # image is still saved.
+                    stats.append((
+                        correct,
+                        torch.empty(0, device=device),
+                        torch.empty(0, device=device),
+                        targets_orig[:],
+                    ))
+                else:
+                    predn = pred.clone()
+
+                    if sc:
+                        predn[:, -1] = reclassify(predn[:, -1], sc_cat)
+
+                    if nl:
+                        labelsn = torch.cat((targets[..., None], tbox), 1)
+                        correct = process_batch(predn, labelsn, iouv)
+
+                    stats.append((
+                        correct,
+                        pred[:, 4],
+                        pred[:, 5],
+                        targets_orig[:],
+                    ))
+
+                # Compute exact per-image AP@0.5
+                if npr > 0:
+                    correct_img = correct[:, [0]].cpu().numpy()
+                    conf_img = pred[:, 4].detach().cpu().numpy()
+                    pred_cls_img = pred[:, 5].detach().cpu().numpy()
+                else:
+                    correct_img = np.zeros((0, 1), dtype=bool)
+                    conf_img = np.empty(0, dtype=np.float32)
+                    pred_cls_img = np.empty(0, dtype=np.float32)
+
                 true_cls_img = targets_orig.cpu().numpy()
-                # If there are no positive samples, skip AP computation
+
                 if len(true_cls_img) > 0 and len(pred_cls_img) > 0:
                     _, _, _, _, _, ap_img, ap_class_img = ap_per_class(
-                        correct_img, conf_img, pred_cls_img, true_cls_img, names=names
+                        correct_img,
+                        conf_img,
+                        pred_cls_img,
+                        true_cls_img,
+                        names=names,
                     )
-                    image_map50 = ap_img[:, 0].mean()  # mean AP@0.5 across classes
+                    image_map50 = ap_img[:, 0].mean()
                 else:
                     image_map50 = 0.0
 
-                ### Viz for each image
-                #img_np = images[si].detach().cpu().permute(1, 2, 0).numpy()
-                img_np = images[si].detach().cpu()[[2, 1, 0], :, :].permute(1, 2, 0).numpy()
-                # Clip to 1st–99th percentile range to remove outliers
-                low, high = np.percentile(img_np, [1, 99])
-                img_np = np.clip(img_np, low, high)
-                if img_np.max() > 1:  # normalize if values are 0–255
-                    img_np = img_np / 255.0
-
-                fig, ax = plt.subplots(1, 1, figsize=(8, 8))
-                ax.imshow(img_np)
-
-                ### Draw ground-truth boxes (green)
-                if nl > 0:
-                    tbox_np = tbox.cpu().numpy()
-                    targets_np = targets_orig.cpu().numpy()
-                    for j, gt_box in enumerate(tbox_np):
-                        x1, y1, x2, y2 = gt_box.tolist()
-                        gt_label = int(targets_np[j])
-                        rect = patches.Rectangle(
-                            (x1, y1), x2 - x1, y2 - y1,
-                            linewidth=2, edgecolor="lime", facecolor="none"
-                        )
-                        ax.add_patch(rect)
-                        ax.text(
-                            x1,
-                            min(y2 + 5, img_np.shape[0] - 1),
-                            f"{names[gt_label]}",
-                            color="lime",
-                            fontsize=7,
-                            weight="bold",
-                            verticalalignment="top",
-                            bbox=dict(facecolor="black", alpha=0.5, pad=1)
-                        )
-
-                ### Draw predicted boxes (red)
-                if pred is not None and len(pred) > 0:
-                    pred_cpu = pred.detach().cpu()
-                
-                    # Compute best same-class IoU for each prediction
-                    pred_iou = {}
-                
-                    if nl > 0:
-                        pred_for_iou = pred.clone()
-                
-                        if sc:
-                            pred_for_iou[:, -1] = reclassify(pred_for_iou[:, -1], sc_cat)
-                
-                        ious = box_iou(tbox.to(pred_for_iou.device), pred_for_iou[:, :4])
-                        same_class = targets[:, None] == pred_for_iou[:, 5][None, :]
-                
-                        for pred_idx in range(pred_for_iou.shape[0]):
-                            valid_ious = ious[:, pred_idx][same_class[:, pred_idx]]
-                            pred_iou[pred_idx] = valid_ious.max().item() if valid_ious.numel() > 0 else 0.0
-                
-                    for pred_idx, box in enumerate(pred_cpu):
-                        x1, y1, x2, y2, score, label = box.tolist()
-                        best_iou = pred_iou.get(pred_idx, 0.0)
-                
-                        rect = patches.Rectangle(
-                            (x1, y1), x2 - x1, y2 - y1,
-                            linewidth=2, edgecolor="red", facecolor="none"
-                        )
-                        ax.add_patch(rect)
-                
-                        # ax.text(
-                        #     x1, max(y1 - 5, 0),
-                        #     f"{names[int(label)]}: {score:.2f}, IoU={best_iou:.2f}",
-                        #     color="yellow", fontsize=8, weight="bold",
-                        #     bbox=dict(facecolor="black", alpha=0.5, pad=1)
-                        # )
-                        ax.text(
-                            x1, max(y1 - 5, 0),
-                            f"{names[int(label)]}: {score:.2f}\nIoU: {best_iou:.2f}",
-                            color="yellow", fontsize=8, weight="bold",
-                            linespacing=1.2,
-                            bbox=dict(facecolor="black", alpha=0.5, pad=1)
-                        )
-                
-                filename = os.path.basename(metadata["impath"][si])
-                ax.set_title(
-                    f"{filename}\nmAP@0.5 = {image_map50:.3f}",
-                    color='white',
-                    fontsize=12,
-                    weight='bold',
-                    backgroundcolor='black'
+                # Prepare image for visualization
+                img_np = (
+                    images[si]
+                    .detach()
+                    .cpu()[[2, 1, 0], :, :]
+                    .permute(1, 2, 0)
+                    .numpy()
                 )
 
-                # Save instead of plt.show()
-                save_path = os.path.join(viz_dir, f"batch{i}_img{si}.png")
-                plt.savefig(save_path, bbox_inches="tight", dpi=150)
-                plt.close(fig)  # free memory
+                low, high = np.percentile(img_np, [1, 99])
+                img_np = np.clip(img_np, low, high)
+
+                if high > low:
+                    img_np = (img_np - low) / (high - low)
+                else:
+                    img_np = np.zeros_like(img_np)
+
+                img_np = np.clip(img_np, 0.0, 1.0)
+
+                filename = os.path.basename(metadata["impath"][si])
+
+                # ============================================================
+                # Save prediction-only image
+                # ============================================================
+                fig_pred, ax_pred = plt.subplots(1, 1, figsize=(8, 8))
+                ax_pred.imshow(img_np, zorder=0)
+
+                if npr > 0:
+                    pred_cpu = pred.detach().cpu()
+
+                    for pred_idx, box in enumerate(pred_cpu):
+                        x1, y1, x2, y2, score, label = box.tolist()
+
+                        rect = patches.Rectangle(
+                            (x1, y1),
+                            x2 - x1,
+                            y2 - y1,
+                            linewidth=2,
+                            edgecolor="red",
+                            facecolor="none",
+                            zorder=5,
+                        )
+                        ax_pred.add_patch(rect)
+
+                        ax_pred.text(
+                            x1,
+                            min(y2 + 5, img_np.shape[0] - 1),
+                            f"{names[int(label)]}",
+                            color="white",
+                            fontsize=14,
+                            weight="bold",
+                            verticalalignment="top",
+                            bbox=dict(
+                                facecolor="black",
+                                edgecolor="none",
+                                alpha=0.5,
+                                pad=1,
+                            ),
+                            zorder=20,
+                            clip_on=False,
+                        )
+
+                # ax_pred.set_title(
+                #     f"{filename}\nmAP@0.5 = {image_map50:.3f}",
+                #     color="white",
+                #     fontsize=12,
+                #     weight="bold",
+                #     backgroundcolor="black",
+                # )
+                ax_pred.axis("off")
+
+                prediction_save_path = os.path.join(
+                    viz_dir,
+                    f"batch{i}_img{si}_prediction.png",
+                )
+                fig_pred.savefig(
+                    prediction_save_path,
+                    bbox_inches="tight",
+                    dpi=150,
+                )
+                plt.close(fig_pred)
+
+                # ============================================================
+                # Save ground-truth-only image
+                # ============================================================
+                fig_gt, ax_gt = plt.subplots(1, 1, figsize=(8, 8))
+                ax_gt.imshow(img_np, zorder=0)
+
+                if nl > 0:
+                    tbox_np = tbox.detach().cpu().numpy()
+                    targets_np = targets_orig.detach().cpu().numpy()
+
+                    for gt_idx, gt_box in enumerate(tbox_np):
+                        x1, y1, x2, y2 = gt_box.tolist()
+                        gt_label = int(targets_np[gt_idx])
+
+                        rect = patches.Rectangle(
+                            (x1, y1),
+                            x2 - x1,
+                            y2 - y1,
+                            linewidth=2,
+                            edgecolor="lime",
+                            facecolor="none",
+                            zorder=5,
+                        )
+                        ax_gt.add_patch(rect)
+
+                        ax_gt.text(
+                            x1,
+                            min(y2 + 5, img_np.shape[0] - 1),
+                            names[gt_label],
+                            color="white",
+                            fontsize=14,
+                            weight="bold",
+                            verticalalignment="top",
+                            bbox=dict(
+                                facecolor="black",
+                                edgecolor="none",
+                                alpha=0.5,
+                                pad=1,
+                            ),
+                            zorder=20,
+                            clip_on=False,
+                        )
+
+                # ax_gt.set_title(
+                #     filename,
+                #     color="white",
+                #     fontsize=12,
+                #     weight="bold",
+                #     backgroundcolor="black",
+                # )
+                ax_gt.axis("off")
+
+                ground_truth_save_path = os.path.join(
+                    viz_dir,
+                    f"batch{i}_img{si}_ground_truth.png",
+                )
+                fig_gt.savefig(
+                    ground_truth_save_path,
+                    bbox_inches="tight",
+                    dpi=150,
+                )
+                plt.close(fig_gt)
                 
     # Use original categories
     names = model.classifier.get_categories()

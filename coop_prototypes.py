@@ -77,6 +77,12 @@ NEW_CNAMES = {
     "KC-1":   "KC-1 aircraft",
     "SU-34":  "SU-34 aircraft",
     "SU-24":  "SU-24 aircraft",
+    "Large Civil Transport/Utility": "Large Civil Transport or Utility aircraft",
+    "Medium Civil Transport/Utility": "Medium Civil Transport or Utility aircraft",
+    "Military Fighter/Interceptor/Attack": "Military Fighter or Interceptor or Attack aircraft",
+    "Military Trainer": "Military Trainer aircraft",
+    "Military Transport/Utility/AWAC": "Military Transport or Utility or AWAC aircraft",
+    "Small Civil Transport/Utility": "Small Civil Transport or Utility aircraft",
 }
     
 class TextEncoder(nn.Module):
