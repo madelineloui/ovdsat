@@ -12,13 +12,13 @@ source activate ovdsat
 DATA_DIR=data
 M=1
 
-for backbone in dinov2 #clip-14-fmow-test #dinov2 clip-14 openclip-14 georsclip-14 remoteclip-14 clip-14-cap0 clip-14-cap1 clip-14-cap2 clip-14-gpt0-512-epoch23 clip-14-gpt0-512-epoch50 clip-14-gpte-512-epoch26 clip-14-gpte-512-epoch50 clip-14-gpt0-1024-epoch26 clip-14-gpt0-1024-epoch50 clip-14-gpte-1024-epoch24 clip-14-gpte-1024-epoch50
+for backbone in dinov2
 do
     for dataset in dior
     do
-        for M in 1 2 3 4 5
+        for M in 1 2 3
         do
-            for N in 1 3 5 10 20 30
+            for N in 1 5 10
             do
                 echo "Creating prototypes for the ${dataset} dataset using ${backbone} features with N=${N}"
 

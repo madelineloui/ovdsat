@@ -15,9 +15,9 @@ for backbone in clip-14
 do
     for dataset in mar
     do
-        for M in 1 2 3
+        for M in 2 3
         do
-            for N in 1 3 5 10 30
+            for N in 10
             do
                 echo "Creating prototypes for the ${dataset} dataset using ${backbone} features with N=${N}"
 

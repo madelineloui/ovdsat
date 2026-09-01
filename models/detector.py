@@ -195,6 +195,9 @@ class OVDCropDetector(OVDDetector):
                     all_crops = prepare_image_for_backbone(all_crops, self.backbone_type, prototype_type=self.prototype_type)
 
                     class_preds = self.classifier(all_crops, proposals, normalize=True, aggregation=aggregation)
+                    # print("class_preds shape:", class_preds.shape)
+                    # print("num_classes:", self.num_classes)
+                    # print(torch.argmax(class_preds, dim=1))
 
                     # Apply non maximum suppression
                     pred_boxes_with_scores = torch.cat([filtered_boxes.to(device), filtered_scores[:, None].to(device), class_preds.to(device)], dim=1)

@@ -18,7 +18,7 @@ aug=pixel
 
 for backbone in dinov2
 do
-    for level in 0.9 0.7
+    for level in 0.9 0.8 0.7
     do
         for M in 1 2 3
         do

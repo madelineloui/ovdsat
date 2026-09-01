@@ -175,98 +175,98 @@ def eval_detection(args, model, val_dataloader, device):
                 else:
                     image_map50 = 0.0
 
-                ### Viz for each image
-                #img_np = images[si].detach().cpu().permute(1, 2, 0).numpy()
-                img_np = images[si].detach().cpu()[[2, 1, 0], :, :].permute(1, 2, 0).numpy()
-                # Clip to 1st–99th percentile range to remove outliers
-                low, high = np.percentile(img_np, [1, 99])
-                img_np = np.clip(img_np, low, high)
-                if img_np.max() > 1:  # normalize if values are 0–255
-                    img_np = img_np / 255.0
+                # ### Viz for each image
+                # #img_np = images[si].detach().cpu().permute(1, 2, 0).numpy()
+                # img_np = images[si].detach().cpu()[[2, 1, 0], :, :].permute(1, 2, 0).numpy()
+                # # Clip to 1st–99th percentile range to remove outliers
+                # low, high = np.percentile(img_np, [1, 99])
+                # img_np = np.clip(img_np, low, high)
+                # if img_np.max() > 1:  # normalize if values are 0–255
+                #     img_np = img_np / 255.0
 
-                fig, ax = plt.subplots(1, 1, figsize=(8, 8))
-                ax.imshow(img_np)
+                # fig, ax = plt.subplots(1, 1, figsize=(8, 8))
+                # ax.imshow(img_np)
 
-                ### Draw ground-truth boxes (green)
-                if nl > 0:
-                    tbox_np = tbox.cpu().numpy()
-                    targets_np = targets_orig.cpu().numpy()
-                    for j, gt_box in enumerate(tbox_np):
-                        x1, y1, x2, y2 = gt_box.tolist()
-                        gt_label = int(targets_np[j])
-                        rect = patches.Rectangle(
-                            (x1, y1), x2 - x1, y2 - y1,
-                            linewidth=2, edgecolor="lime", facecolor="none"
-                        )
-                        ax.add_patch(rect)
-                        ax.text(
-                            x1,
-                            min(y2 + 5, img_np.shape[0] - 1),
-                            f"{names[gt_label]}",
-                            color="lime",
-                            fontsize=7,
-                            weight="bold",
-                            verticalalignment="top",
-                            bbox=dict(facecolor="black", alpha=0.5, pad=1)
-                        )
+                # ### Draw ground-truth boxes (green)
+                # if nl > 0:
+                #     tbox_np = tbox.cpu().numpy()
+                #     targets_np = targets_orig.cpu().numpy()
+                #     for j, gt_box in enumerate(tbox_np):
+                #         x1, y1, x2, y2 = gt_box.tolist()
+                #         gt_label = int(targets_np[j])
+                #         rect = patches.Rectangle(
+                #             (x1, y1), x2 - x1, y2 - y1,
+                #             linewidth=2, edgecolor="lime", facecolor="none"
+                #         )
+                #         ax.add_patch(rect)
+                #         ax.text(
+                #             x1,
+                #             min(y2 + 5, img_np.shape[0] - 1),
+                #             f"{names[gt_label]}",
+                #             color="lime",
+                #             fontsize=7,
+                #             weight="bold",
+                #             verticalalignment="top",
+                #             bbox=dict(facecolor="black", alpha=0.5, pad=1)
+                #         )
 
-                ### Draw predicted boxes (red)
-                if pred is not None and len(pred) > 0:
-                    pred_cpu = pred.detach().cpu()
+                # ### Draw predicted boxes (red)
+                # if pred is not None and len(pred) > 0:
+                #     pred_cpu = pred.detach().cpu()
                 
-                    # Compute best same-class IoU for each prediction
-                    pred_iou = {}
+                #     # Compute best same-class IoU for each prediction
+                #     pred_iou = {}
                 
-                    if nl > 0:
-                        pred_for_iou = pred.clone()
+                #     if nl > 0:
+                #         pred_for_iou = pred.clone()
                 
-                        if sc:
-                            pred_for_iou[:, -1] = reclassify(pred_for_iou[:, -1], sc_cat)
+                #         if sc:
+                #             pred_for_iou[:, -1] = reclassify(pred_for_iou[:, -1], sc_cat)
                 
-                        ious = box_iou(tbox.to(pred_for_iou.device), pred_for_iou[:, :4])
-                        same_class = targets[:, None] == pred_for_iou[:, 5][None, :]
+                #         ious = box_iou(tbox.to(pred_for_iou.device), pred_for_iou[:, :4])
+                #         same_class = targets[:, None] == pred_for_iou[:, 5][None, :]
                 
-                        for pred_idx in range(pred_for_iou.shape[0]):
-                            valid_ious = ious[:, pred_idx][same_class[:, pred_idx]]
-                            pred_iou[pred_idx] = valid_ious.max().item() if valid_ious.numel() > 0 else 0.0
+                #         for pred_idx in range(pred_for_iou.shape[0]):
+                #             valid_ious = ious[:, pred_idx][same_class[:, pred_idx]]
+                #             pred_iou[pred_idx] = valid_ious.max().item() if valid_ious.numel() > 0 else 0.0
                 
-                    for pred_idx, box in enumerate(pred_cpu):
-                        x1, y1, x2, y2, score, label = box.tolist()
-                        best_iou = pred_iou.get(pred_idx, 0.0)
+                #     for pred_idx, box in enumerate(pred_cpu):
+                #         x1, y1, x2, y2, score, label = box.tolist()
+                #         best_iou = pred_iou.get(pred_idx, 0.0)
                 
-                        rect = patches.Rectangle(
-                            (x1, y1), x2 - x1, y2 - y1,
-                            linewidth=2, edgecolor="red", facecolor="none"
-                        )
-                        ax.add_patch(rect)
+                #         rect = patches.Rectangle(
+                #             (x1, y1), x2 - x1, y2 - y1,
+                #             linewidth=2, edgecolor="red", facecolor="none"
+                #         )
+                #         ax.add_patch(rect)
                 
-                        # ax.text(
-                        #     x1, max(y1 - 5, 0),
-                        #     f"{names[int(label)]}: {score:.2f}, IoU={best_iou:.2f}",
-                        #     color="yellow", fontsize=8, weight="bold",
-                        #     bbox=dict(facecolor="black", alpha=0.5, pad=1)
-                        # )
-                        ax.text(
-                            x1, max(y1 - 5, 0),
-                            f"{names[int(label)]}: {score:.2f}\nIoU: {best_iou:.2f}",
-                            color="yellow", fontsize=8, weight="bold",
-                            linespacing=1.2,
-                            bbox=dict(facecolor="black", alpha=0.5, pad=1)
-                        )
+                #         # ax.text(
+                #         #     x1, max(y1 - 5, 0),
+                #         #     f"{names[int(label)]}: {score:.2f}, IoU={best_iou:.2f}",
+                #         #     color="yellow", fontsize=8, weight="bold",
+                #         #     bbox=dict(facecolor="black", alpha=0.5, pad=1)
+                #         # )
+                #         ax.text(
+                #             x1, max(y1 - 5, 0),
+                #             f"{names[int(label)]}: {score:.2f}\nIoU: {best_iou:.2f}",
+                #             color="yellow", fontsize=8, weight="bold",
+                #             linespacing=1.2,
+                #             bbox=dict(facecolor="black", alpha=0.5, pad=1)
+                #         )
                 
-                filename = os.path.basename(metadata["impath"][si])
-                ax.set_title(
-                    f"{filename}\nmAP@0.5 = {image_map50:.3f}",
-                    color='white',
-                    fontsize=12,
-                    weight='bold',
-                    backgroundcolor='black'
-                )
+                # filename = os.path.basename(metadata["impath"][si])
+                # ax.set_title(
+                #     f"{filename}\nmAP@0.5 = {image_map50:.3f}",
+                #     color='white',
+                #     fontsize=12,
+                #     weight='bold',
+                #     backgroundcolor='black'
+                # )
 
-                # Save instead of plt.show()
-                save_path = os.path.join(viz_dir, f"batch{i}_img{si}.png")
-                plt.savefig(save_path, bbox_inches="tight", dpi=150)
-                plt.close(fig)  # free memory
+                # # Save instead of plt.show()
+                # save_path = os.path.join(viz_dir, f"batch{i}_img{si}.png")
+                # plt.savefig(save_path, bbox_inches="tight", dpi=150)
+                # plt.close(fig)  # free memory
                 
     # Use original categories
     names = model.classifier.get_categories()

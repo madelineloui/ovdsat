@@ -16,7 +16,7 @@ for backbone in dinov2
 do
     for dataset in simd
     do
-        for level in 0.95 0.85
+        for level in 0.9 0.8 0.7
         do
             for M in 1 2 3
             do

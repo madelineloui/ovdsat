@@ -109,12 +109,42 @@ def eval_detection(args, model, val_dataloader, device):
         
     print('names', names)
     print('nc', nc)
+
+    # === SIMD COOP DISPLAY NAME CHANGE ===
+    # CoOp prototype names -> original SIMD dataset names.
+    # This is used only for visualization, not evaluation.
+    simd_coop_to_original = {
+        "propeller aircraft": "propeller",
+        "chartered aircraft": "chartered",
+        "pushback truck": "pushbacktruck",
+        "others": "other",
+        "fighter aircraft": "fighter",
+        "trainer aircraft": "trainer",
+    }
+
+    display_names = {}
+    for class_idx in range(nc):
+        class_name = str(names[class_idx])
+
+        if args.dataset == "simd" and args.prototype_type == "coop_prototypes" and not sc:
+            display_names[class_idx] = simd_coop_to_original.get(class_name, class_name)
+        else:
+            display_names[class_idx] = class_name
+    # === END SIMD COOP DISPLAY NAME CHANGE ===
+
+    # Sort original/display names so colors remain identical across runs.
+    sorted_class_names = sorted(display_names.values())
+    color_palette = plt.get_cmap("turbo")
+    class_name_to_color = {
+        class_name: color_palette(idx / max(len(sorted_class_names) - 1, 1))
+        for idx, class_name in enumerate(sorted_class_names)
+    }
     
     stats = []
     with torch.no_grad():
         for i, batch in tqdm(enumerate(val_dataloader), total=len(val_dataloader), leave=False):
-            if i > 5: # TODO debug
-                break
+            if i < 111: # TODO debug
+                continue
             if args.classification != 'mask':
                 images, boxes, labels, metadata = batch
                 boxes = boxes.to(device)
@@ -200,6 +230,19 @@ def eval_detection(args, model, val_dataloader, device):
                 else:
                     image_map50 = 0.0
 
+                # === VISUALIZATION FILTER CHANGE ===
+                # Only save examples where:
+                # 1. GT contains more than one unique class
+                # 2. Predictions contain more than one unique class
+                # 3. Per-image mAP50 is greater than 0
+                # if (
+                #     torch.unique(targets_orig).numel() <= 1
+                #     or npr == 0
+                #     or torch.unique(pred[:, 5]).numel() <= 1
+                #     or image_map50 <= 0
+                # ):
+                #     continue
+
                 # Prepare image for visualization
                 img_np = (
                     images[si]
@@ -232,13 +275,19 @@ def eval_detection(args, model, val_dataloader, device):
 
                     for pred_idx, box in enumerate(pred_cpu):
                         x1, y1, x2, y2, score, label = box.tolist()
+                        label = int(label)
+
+                        # === SIMD COOP DISPLAY NAME CHANGE ===
+                        display_name = display_names[label]
+                        class_color = class_name_to_color[display_name]
+                        # === END SIMD COOP DISPLAY NAME CHANGE ===
 
                         rect = patches.Rectangle(
                             (x1, y1),
                             x2 - x1,
                             y2 - y1,
-                            linewidth=2,
-                            edgecolor="red",
+                            linewidth=4,
+                            edgecolor=class_color,
                             facecolor="none",
                             zorder=5,
                         )
@@ -247,9 +296,9 @@ def eval_detection(args, model, val_dataloader, device):
                         ax_pred.text(
                             x1,
                             min(y2 + 5, img_np.shape[0] - 1),
-                            f"{names[int(label)]}",
+                            display_name,
                             color="white",
-                            fontsize=14,
+                            fontsize=20,
                             weight="bold",
                             verticalalignment="top",
                             bbox=dict(
@@ -269,12 +318,24 @@ def eval_detection(args, model, val_dataloader, device):
                 #     weight="bold",
                 #     backgroundcolor="black",
                 # )
+                # ax_pred.set_title(
+                #     f"{filename}\nmAP@0.5 = {image_map50:.3f}",
+                #     fontsize=12,
+                #     weight="bold",
+                # )
                 ax_pred.axis("off")
 
+                # prediction_save_path = os.path.join(
+                #     viz_dir,
+                #     f"batch{i}_img{si}_prediction.png",
+                # )
+                
+                # === PREDICTION FILENAME CHANGE ===
                 prediction_save_path = os.path.join(
                     viz_dir,
-                    f"batch{i}_img{si}_prediction.png",
+                    f"batch{i}_img{si}_prediction_{image_map50:.4f}.png",
                 )
+                
                 fig_pred.savefig(
                     prediction_save_path,
                     bbox_inches="tight",
@@ -296,12 +357,17 @@ def eval_detection(args, model, val_dataloader, device):
                         x1, y1, x2, y2 = gt_box.tolist()
                         gt_label = int(targets_np[gt_idx])
 
+                        # === SIMD COOP DISPLAY NAME CHANGE ===
+                        display_name = display_names[gt_label]
+                        class_color = class_name_to_color[display_name]
+                        # === END SIMD COOP DISPLAY NAME CHANGE ===
+
                         rect = patches.Rectangle(
                             (x1, y1),
                             x2 - x1,
                             y2 - y1,
-                            linewidth=2,
-                            edgecolor="lime",
+                            linewidth=4,
+                            edgecolor=class_color,
                             facecolor="none",
                             zorder=5,
                         )
@@ -310,9 +376,9 @@ def eval_detection(args, model, val_dataloader, device):
                         ax_gt.text(
                             x1,
                             min(y2 + 5, img_np.shape[0] - 1),
-                            names[gt_label],
+                            display_name,
                             color="white",
-                            fontsize=14,
+                            fontsize=20,
                             weight="bold",
                             verticalalignment="top",
                             bbox=dict(

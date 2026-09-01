@@ -92,6 +92,82 @@ NEW_CNAMES = {
     "Small Civil Transport/Utility": "Small Civil Transport/Utility aircraft",
 }
 
+NEW_CNAMES_DESC = {
+    "SU-35":  "an aircraft with broad swept wings, two rear-mounted jet engines, a long pointed fuselage, and two outward-angled vertical tails.",
+    "C-130":  "an aircraft with straight high-mounted wings, four wing-mounted propeller engines, a thick boxy cargo fuselage, and a broad vertical tail.",
+    "C-17":   "an aircraft with broad high-mounted swept wings, four wing-mounted jet engines, a wide rounded cargo fuselage, and a large T-shaped tail.",
+    "C-5":    "an aircraft with very large high-mounted swept wings, four wing-mounted jet engines, an extremely large elongated cargo fuselage, and a large T-shaped tail.",
+    "F-16":   "an aircraft with compact swept wings, one rear-mounted jet engine, a narrow pointed fuselage, and one vertical tail.",
+    "TU-160": "an aircraft with large variable-sweep wings, four rear-mounted jet engines, a long narrow streamlined fuselage, and one swept vertical tail.",
+    "E-3":    "an aircraft with swept wings, four wing-mounted jet engines, a long narrow fuselage with a large circular radar disk above it, and a swept tail.",
+    "B-52":   "an aircraft with very long narrow swept wings, eight wing-mounted jet engines, a long slender fuselage, and one swept vertical tail.",
+    "P-3C":   "an aircraft with straight low-mounted wings, four wing-mounted propeller engines, a long narrow fuselage, and a tall tail with a pointed rear extension.",
+    "B-1B":   "an aircraft with variable-sweep wings, four rear-mounted jet engines, a long narrow pointed fuselage, and one swept vertical tail.",
+    "E-8":    "an aircraft with swept wings, four wing-mounted jet engines, a long narrow airliner-shaped fuselage, and a conventional swept tail.",
+    "TU-22":  "an aircraft with variable-sweep wings, two rear-mounted jet engines, a long narrow pointed fuselage, and one tall swept vertical tail.",
+    "F-15":   "an aircraft with broad swept wings, two rear-mounted jet engines, a wide angular fuselage, and two tall vertical tails.",
+    "KC-135": "an aircraft with long swept wings, four wing-mounted jet engines, a long narrow tanker fuselage, and one swept vertical tail.",
+    "F-22":   "an aircraft with broad diamond-shaped wings, two rear-mounted jet engines, a wide angular stealth fuselage, and two outward-angled vertical tails.",
+    "FA-18":  "an aircraft with swept trapezoidal wings, two rear-mounted jet engines, a broad pointed fuselage, and two outward-angled vertical tails.",
+    "TU-95":  "an aircraft with long swept wings, four wing-mounted propeller engines, a long slender fuselage, and one swept vertical tail.",
+    "KC-1":   "an aircraft with swept wings, three rear and wing-mounted jet engines, a wide airliner-shaped fuselage, and one swept vertical tail.",
+    "SU-34":  "an aircraft with broad swept wings, two rear-mounted jet engines, a wide flattened nose and long fuselage, and two vertical tails.",
+    "SU-24":  "an aircraft with variable-sweep wings, two rear-mounted jet engines, a long narrow angular fuselage, and one swept vertical tail.",
+    "car": "a small road vehicle with four wheels and a compact body",
+    "truck": "a large road vehicle with a cargo bed or box-shaped rear section",
+    "airliner": "a large passenger aircraft with swept wings, wing-mounted jet engines, a long fuselage, and a swept tail",
+    "stairtruck": "an airport truck with a raised passenger staircase",
+    "van": "a medium-sized road vehicle with a tall enclosed rectangular body",
+    "bus": "a long passenger road vehicle with a large enclosed body and many windows",
+    "longvehicle": "a very long road vehicle with an extended body or trailer",
+    "boat": "a small watercraft with a long narrow hull",
+    "propeller": "an aircraft with straight or swept wings, propeller engines, a medium-length fuselage, and a conventional tail",
+    "chartered": "a small passenger aircraft with straight or swept wings, small jet or propeller engines, a short fuselage, and a conventional tail",
+    "pushbacktruck": "a low airport vehicle with a wide rectangular body used to move aircraft",
+    "other": "another miscellaneous vehicle with varied shape and size",
+    "fighter": "a compact military aircraft with swept wings, rear-mounted jet engines, a narrow fuselage with pointed nose, and one or two vertical tails", 
+    "trainer": "a small training aircraft with straight wings, small jet or propeller engines, a short fuselage with prominent cockpit, and a conventional tail",
+    "helicopter": "an aircraft with large overhead rotor blades, engines above the fuselage, a compact body, and a long narrow tail boom",
+}
+
+NEW_CNAMES_LABEL_DESC = {
+    "SU-35":  "a SU-35 aircraft with broad swept wings, two rear-mounted jet engines, a long pointed fuselage, and two outward-angled vertical tails.",
+    "C-130":  "a C-130 aircraft with straight high-mounted wings, four wing-mounted propeller engines, a thick boxy cargo fuselage, and a broad vertical tail.",
+    "C-17":   "a C-17 aircraft with broad high-mounted swept wings, four wing-mounted jet engines, a wide rounded cargo fuselage, and a large T-shaped tail.",
+    "C-5":    "a C-5 aircraft with very large high-mounted swept wings, four wing-mounted jet engines, an extremely large elongated cargo fuselage, and a large T-shaped tail.",
+    "F-16":   "a F-16 aircraft with compact swept wings, one rear-mounted jet engine, a narrow pointed fuselage, and one vertical tail.",
+    "TU-160": "a TU-160 aircraft with large variable-sweep wings, four rear-mounted jet engines, a long narrow streamlined fuselage, and one swept vertical tail.",
+    "E-3":    "a E-3 aircraft with swept wings, four wing-mounted jet engines, a long narrow fuselage with a large circular radar disk above it, and a swept tail.",
+    "B-52":   "a B-52 aircraft with very long narrow swept wings, eight wing-mounted jet engines, a long slender fuselage, and one swept vertical tail.",
+    "P-3C":   "a P-3C aircraft with straight low-mounted wings, four wing-mounted propeller engines, a long narrow fuselage, and a tall tail with a pointed rear extension.",
+    "B-1B":   "a B-1B aircraft with variable-sweep wings, four rear-mounted jet engines, a long narrow pointed fuselage, and one swept vertical tail.",
+    "E-8":    "a E-8 aircraft with swept wings, four wing-mounted jet engines, a long narrow airliner-shaped fuselage, and a conventional swept tail.",
+    "TU-22":  "a TU-22 aircraft with variable-sweep wings, two rear-mounted jet engines, a long narrow pointed fuselage, and one tall swept vertical tail.",
+    "F-15":   "a F-15 aircraft with broad swept wings, two rear-mounted jet engines, a wide angular fuselage, and two tall vertical tails.",
+    "KC-135": "a KC-135 aircraft with long swept wings, four wing-mounted jet engines, a long narrow tanker fuselage, and one swept vertical tail.",
+    "F-22":   "a F-22 aircraft with broad diamond-shaped wings, two rear-mounted jet engines, a wide angular stealth fuselage, and two outward-angled vertical tails.",
+    "FA-18":  "a FA-18 aircraft with swept trapezoidal wings, two rear-mounted jet engines, a broad pointed fuselage, and two outward-angled vertical tails.",
+    "TU-95":  "a TU-95 aircraft with long swept wings, four wing-mounted propeller engines, a long slender fuselage, and one swept vertical tail.",
+    "KC-1":   "a KC-1 aircraft with swept wings, three rear and wing-mounted jet engines, a wide airliner-shaped fuselage, and one swept vertical tail.",
+    "SU-34":  "a SU-34 aircraft with broad swept wings, two rear-mounted jet engines, a wide flattened nose and long fuselage, and two vertical tails.",
+    "SU-24":  "a SU-24 aircraft with variable-sweep wings, two rear-mounted jet engines, a long narrow angular fuselage, and one swept vertical tail.",
+    "car": "a car, a small road vehicle with four wheels and a compact body",
+    "truck": "a truck, a large road vehicle with a cargo bed or box-shaped rear section",
+    "airliner": "an airliner, a large passenger aircraft with swept wings, wing-mounted jet engines, a long fuselage, and a swept tail",
+    "stairtruck": "a stair truck, an airport truck with a raised passenger staircase",
+    "van": "a van, a medium-sized road vehicle with a tall enclosed rectangular body",
+    "bus": "a bus, a long passenger road vehicle with a large enclosed body and many windows",
+    "longvehicle": "a long vehicle, a very long road vehicle with an extended body or trailer",
+    "boat": "a boat, a small watercraft with a long narrow hull",
+    "propeller": "a propeller aircraft, an aircraft with straight or swept wings, propeller engines, a medium-length fuselage, and a conventional tail",
+    "chartered": "a chartered aircraft, a small passenger aircraft with straight or swept wings, small jet or propeller engines, a short fuselage, and a conventional tail",
+    "pushbacktruck": "a pushback truck, a low airport vehicle with a wide rectangular body used to move aircraft",
+    "other": "another vehicle, a miscellaneous vehicle with varied shape and size",
+    "fighter": "a fighter aircraft, a compact military aircraft with swept wings, rear-mounted jet engines, a narrow fuselage with pointed nose, and one or two vertical tails",
+    "trainer": "a trainer aircraft, a small training aircraft with straight wings, small jet or propeller engines, a short fuselage with prominent cockpit, and a conventional tail",
+    "helicopter": "a helicopter, an aircraft with large overhead rotor blades, engines above the fuselage, a compact body, and a long narrow tail boom",
+}
+
 def build_background_text_prototypes(args, tokenizer, model, device):
     '''
     Build zero-shot text prototypes by creating prompts and processing them with CLIP
@@ -150,11 +226,28 @@ def build_text_prototypes(args, tokenizer, model, device):
         
     # Turn labels into prompts "a satellite image of a {label}"
     prompts = []
-    for c in classes:
-        if c in NEW_CNAMES:
-            prompts.append(f'a satellite image of a {NEW_CNAMES[c]}')
-        else:
-            prompts.append(f'a satellite image of a {c}')
+    if args.desc_type == 'label_only':
+        for c in classes:
+            if c in NEW_CNAMES:
+                prompts.append(f'a satellite image of a {NEW_CNAMES[c]}')
+            else:
+                prompts.append(f'a satellite image of a {c}')
+    elif args.desc_type == 'desc_only':
+        for c in classes:
+            if c in NEW_CNAMES_DESC:
+                prompts.append(f'a satellite image of {NEW_CNAMES_DESC[c]}')
+            else:
+                print('ERROR!!!')
+                print(c)
+                prompts.append(f'a satellite image of a {c}')
+    elif args.desc_type == 'label_and_desc':
+        for c in classes:
+            if c in NEW_CNAMES_LABEL_DESC:
+                prompts.append(f'a satellite image of {NEW_CNAMES_LABEL_DESC[c]}')
+            else:
+                print('ERROR!!!')
+                print(c)
+                prompts.append(f'a satellite image of a {c}')
     print('PROMPTS:')
     print(prompts)
     
@@ -235,6 +328,7 @@ if __name__ == '__main__':
     parser.add_argument('--backbone_type', type=str, default='clip-14')
     parser.add_argument('--labels_dir', type=str, default='/home/gridsan/manderson/ovdsat/data/text/dior_labels.txt')
     parser.add_argument('--bg_prompts', type=str, default=None)
+    parser.add_argument('--desc_type', type=str, default="label_only") # options: label_only, desc_only, label_and_desc
     args = parser.parse_args()
 
     main(args)

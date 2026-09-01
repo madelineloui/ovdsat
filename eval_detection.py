@@ -12,6 +12,7 @@ from utils_dir.processing_utils import map_labels_to_prototypes
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from itertools import islice
+import json
 
 import warnings
 warnings.filterwarnings("ignore", message=".*antialias parameter.*")
@@ -111,6 +112,11 @@ def eval_detection(args, model, val_dataloader, device):
     print('names', names)
     print('nc', nc)
 
+    # # Add metadata if present
+    # with open(args.metadata_json, "r") as f:
+    #     metadata_json = json.load(f)
+    # metadata_lookup = {ann["image_fname"]: ann["metadata"] for ann in metadata_json["annotations"]}
+
     num_boxes = None
     stats = []
     with torch.no_grad():
@@ -119,6 +125,14 @@ def eval_detection(args, model, val_dataloader, device):
             #     continue
             if args.classification != 'mask':
                 images, boxes, labels, metadata = batch
+
+                # # Get metadata
+                # metadata_texts = None
+                # if metadata_json:
+                #     metadata_texts = [metadata_lookup[os.path.basename(impath)] for impath in metadata["impath"]]
+                # if i == 0:
+                #     print(metadata_texts[0])
+                    
                 boxes = boxes.to(device)
                 if i == 0:
                     num_boxes = boxes.shape[1]
@@ -273,5 +287,6 @@ if __name__ == '__main__':
     parser.add_argument('--conf_thres', type=float, default=0.1)
     parser.add_argument('--prototype_type', type=str, default='init_prototypes') #init_prototypes, coop_prototypes, text_prototypes (zeroshot)
     parser.add_argument('--sc', action='store_true', default=False)
+    #parser.add_argument('--metadata_json', type=str, required=False)
     args = parser.parse_args()
     main(args)
