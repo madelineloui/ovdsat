@@ -25,7 +25,7 @@ from torchvision import transforms
 from transformers import CLIPModel
 from torchvision import transforms
 from argparse import ArgumentParser
-from utils_dir.backbones_utils import load_backbone, extract_backbone_features, get_backbone_params
+from utils_dir.backbones_utils import load_backbone, extract_backbone_features, get_backbone_params, load_clip_to_cpu
 from utils_dir.coco_to_seg import coco_to_seg
 
 def preprocess(image, mask=None, backbone_type='dinov2', target_size=(602, 602), patch_size=14):
@@ -250,7 +250,8 @@ def build_object_prototypes(args, model, init_data, device, patch_size, crop_pat
                     image.to(device),
                     model,
                     args.backbone_type,
-                    scale_factor=args.scale_factor
+                    scale_factor=args.scale_factor,
+                    cls=args.cls
                 )
                 _, K, D = features.shape
                 p_w = p_h = int(K**0.5)
@@ -306,7 +307,8 @@ def build_object_prototypes(args, model, init_data, device, patch_size, crop_pat
                     image.to(device),
                     model,
                     args.backbone_type,
-                    scale_factor=args.scale_factor
+                    scale_factor=args.scale_factor,
+                    cls=args.cls
                 )
                 _, K, D = features.shape
                 p_w = p_h = int(K**0.5)
@@ -363,7 +365,10 @@ def main(args):
 
     # Load model
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = load_backbone(args.backbone_type)
+    if args.cls and 'clip' in args.backbone_type:
+        model = load_clip_to_cpu(args.backbone_type)
+    else:
+        model = load_backbone(args.backbone_type)
     model = model.to(device)
     model.eval()
     patch_size, _ = get_backbone_params(args.backbone_type)
@@ -405,6 +410,7 @@ if __name__ == '__main__':
     parser.add_argument('--k', type=int, default=200, help='Number of background prototypes (clusters for k-means)')
     parser.add_argument('--store_bg_prototypes', action='store_true', default=False)
     parser.add_argument('--crop_path', type=str)
+    parser.add_argument('--cls', action='store_true', default=False)
     args = parser.parse_args()
 
     main(args)

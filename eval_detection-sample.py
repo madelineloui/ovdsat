@@ -113,7 +113,7 @@ def eval_detection(args, model, val_dataloader, device):
     stats = []
     with torch.no_grad():
         for i, batch in tqdm(enumerate(val_dataloader), total=len(val_dataloader), leave=False):
-            if i > 3: # TODO debug
+            if i > 10: # TODO debug
                 break
             if args.classification != 'mask':
                 images, boxes, labels, metadata = batch
@@ -372,7 +372,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_workers', type=int, default=8)
     parser.add_argument('--scale_factor', nargs='+', type=int, default=2)
     parser.add_argument('--iou_thr', type=float, default=0.2)
-    parser.add_argument('--conf_thres', type=float, default=0.1)
+    parser.add_argument('--conf_thres', type=float, default=0.001)
     parser.add_argument('--prototype_type', type=str, default='init_prototypes') #init_prototypes, coop_prototypes, text_prototypes (zeroshot)
     parser.add_argument('--sc', action='store_true', default=False)
     args = parser.parse_args()

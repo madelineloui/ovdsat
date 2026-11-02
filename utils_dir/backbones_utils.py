@@ -43,7 +43,7 @@ PATH_CKPT_OPENCLIP14_FMOW = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/openc
 PATH_CKPT_LONGCLIP14_FMOW = '/home/gridsan/manderson/ovdsat/Long-CLIP/checkpoints/005-07--05_28_20_longclip.pt'
 PATH_CKPT_OPENCLIP14_REMOTE_FMOW = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-remote-fmow-summary-epoch50.pt'
 PATH_CKPT_OPENCLIP14_GEORS_FMOW = '/home/gridsan/manderson/ovdsat/weights/vlm4rs/openclip-geors-fmow-summary-epoch50.pt'
-PATH_CKPT_DINOV3 = '/home/gridsan/manderson/ovdsat/weights/dinov3_vitl16_pretrain_sat493m-eadcf0ff.pth'
+PATH_CKPT_DINOV3 = '/home/gridsan/manderson/ovdsat/weights/dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth'
 
 
 # For text-based models
@@ -501,28 +501,71 @@ def extract_clip_features(images, model, backbone_type, tile_size=224, prototype
     return output_features, count_tensor
 
 
-def extract_backbone_features(images, model, backbone_type, scale_factor=1, prototype_type='init_prototypes'): #text=False):
+# def extract_backbone_features(images, model, backbone_type, scale_factor=1, prototype_type='init_prototypes', cls=False): #text=False):
+#     '''
+#     Extract features from a pre-trained backbone for any of the supported backbones.
+
+#     Args:
+#         images (torch.Tensor): Input tensor with shape (B, C, H, W)
+#         model (torch.nn.Module): Backbone model
+#         backbone_type (str): Backbone type
+#         scale_factor (int): Scale factor for the input images. Set to 1 for no scaling.
+#     '''
+#     images = F.interpolate(images, scale_factor=scale_factor, mode='bicubic')
+
+#     if 'dinov2' in backbone_type:
+#         with torch.no_grad():
+#             feats = model.forward_features(images)['x_prenorm'][:, 1:]
+#     elif 'clip' in backbone_type:
+#         if 'init' in prototype_type:
+#             feats, _ = extract_clip_features(images, model, backbone_type) # patch embedding
+#         else:
+#             feats = model.visual(images.type(model.dtype)).unsqueeze(1) # cls embedding
+#         feats = feats.view(feats.shape[0], -1, feats.shape[-1])
+#     else:
+#         raise NotImplementedError('Backbone {} not implemented'.format(backbone_type))
+
+#     return feats
+
+
+def extract_backbone_features(images, model, backbone_type, scale_factor=1, prototype_type='init_prototypes', cls=False): #text=False):
     '''
     Extract features from a pre-trained backbone for any of the supported backbones.
-
+ 
     Args:
         images (torch.Tensor): Input tensor with shape (B, C, H, W)
         model (torch.nn.Module): Backbone model
         backbone_type (str): Backbone type
         scale_factor (int): Scale factor for the input images. Set to 1 for no scaling.
+        cls (bool): If True, return one global CLS embedding per image, shape (B, 1, D),
+            instead of patch embeddings, shape (B, N, D). Used with backbones from
+            load_backbone; the text/CoOp path below already returns a CLS embedding.
     '''
-    images = F.interpolate(images, scale_factor=scale_factor, mode='bicubic')
-
-    if 'dinov2' in backbone_type:
+    if cls:
+        images = F.interpolate(images, size=(224, 224), mode='bicubic', align_corners=False, antialias=True)
         with torch.no_grad():
-            feats = model.forward_features(images)['x_prenorm'][:, 1:]
-    elif 'clip' in backbone_type:
-        if 'init' in prototype_type:
-            feats, _ = extract_clip_features(images, model, backbone_type) # patch embedding
-        else:
-            feats = model.visual(images.type(model.dtype)).unsqueeze(1) # cls embedding
-        feats = feats.view(feats.shape[0], -1, feats.shape[-1])
-    else:
-        raise NotImplementedError('Backbone {} not implemented'.format(backbone_type))
+            if 'dino' in backbone_type:
+                feats = model.forward_features(images)['x_norm_clstoken'].unsqueeze(1)
+                #print('debug here', feats.shape)
+            else:
+                feats = model.visual(images.type(model.dtype)).unsqueeze(1) # cls embedding
+                feats = feats.view(feats.shape[0], -1, feats.shape[-1]) # should be 768
+                #print('debug here', feats.shape)
 
+    else:
+        images = F.interpolate(images, scale_factor=scale_factor, mode='bicubic')
+        if 'dino' in backbone_type:
+            with torch.no_grad():
+                feats = model.forward_features(images)['x_prenorm'][:, 1:]
+        elif 'clip' in backbone_type:
+            if 'init' in prototype_type:
+                feats, _ = extract_clip_features(images, model, backbone_type) # patch embedding
+            else:
+                feats = model.visual(images.type(model.dtype)).unsqueeze(1) # cls embedding
+            feats = feats.view(feats.shape[0], -1, feats.shape[-1])
+            print('DEBUG FEATS', feats.shape)
+        else:
+            raise NotImplementedError('Backbone {} not implemented'.format(backbone_type))
+ 
     return feats
+ 

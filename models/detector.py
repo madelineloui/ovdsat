@@ -7,7 +7,7 @@ from utils_dir.rpn_utils import get_box_RPN
 from utils_dir.processing_utils import filter_boxes, filter_boxes_crop 
 from utils_dir.nms import non_max_suppression
 from utils_dir.backbones_utils import prepare_image_for_backbone
-from models.rpn.obb_rpn import OBBRPN
+#from models.rpn.obb_rpn import OBBRPN
 from models.rpn.box_rpn import BoxRPN
 
 class OVDDetector(torch.nn.Module):
@@ -24,6 +24,7 @@ class OVDDetector(torch.nn.Module):
                 rpn_checkpoint='weights/FasterRCNN_FPN_DOTA_final_model.pth',
                 classification='box',    # Possible values: 'box', 'obb', 'mask'
                 prototype_type='init_prototypes',
+                cls=False
                 ):
         super().__init__()
         self.scale_factor = scale_factor
@@ -34,6 +35,7 @@ class OVDDetector(torch.nn.Module):
         self.num_classes = len(self.class_names)
         self.backbone_type = backbone_type  
         self.prototype_type = prototype_type
+        self.cls=cls
         
         print(prototype_type)
 
@@ -50,6 +52,7 @@ class OVDDetector(torch.nn.Module):
         if self.classification == 'box':
             self.rpn = BoxRPN(rpn_config, rpn_checkpoint)
         elif self.classification == 'obb':
+            from models.rpn.obb_rpn import OBBRPN
             self.rpn = OBBRPN(rpn_config, rpn_checkpoint)
         elif sefl.classification == 'image': #CHANGED
             self.rpn = None
@@ -60,11 +63,12 @@ class OVDDetector(torch.nn.Module):
         if classification == 'mask':
             classifier = OVDMaskClassifier
         else:
-            if 'init' in prototype_type:
+            if 'init' in prototype_type and not self.cls:
                 classifier = OVDBoxClassifier
             else:
+                print('detector debug 1')
                 classifier = OVDBoxCropClassifier
-        self.classifier = classifier(all_prototypes, prototypes['label_names'], backbone_type, target_size, scale_factor, min_box_size, ignore_index, prototype_type = prototype_type)
+        self.classifier = classifier(all_prototypes, prototypes['label_names'], backbone_type, target_size, scale_factor, min_box_size, ignore_index, prototype_type=prototype_type, cls=self.cls)
     
 
     def forward(self, images, iou_thr=0.2, conf_thres=0.001, box_conf_threshold=0.01, aggregation='mean', labels=None):
@@ -127,7 +131,7 @@ class OVDDetector(torch.nn.Module):
         
 class OVDCropDetector(OVDDetector):    
         
-    def forward(self, images, iou_thr=0.2, conf_thres=0.5, box_conf_threshold=0.5, aggregation='mean', labels=None):
+    def forward(self, images, iou_thr=0.2, conf_thres=0.001, box_conf_threshold=0.01, aggregation='mean', labels=None):
         '''
         Args:
             images (torch.Tensor): Input tensor with shape (B, C, H, W)
@@ -137,6 +141,10 @@ class OVDCropDetector(OVDDetector):
         '''
         
         device = images.device
+
+        print('iou_thr', iou_thr)
+        print('conf_thres', conf_thres)
+        print('box_conf_threshold', box_conf_threshold)
         
         with torch.no_grad():
             # Generate box proposals with RPN
@@ -195,6 +203,9 @@ class OVDCropDetector(OVDDetector):
                     all_crops = prepare_image_for_backbone(all_crops, self.backbone_type, prototype_type=self.prototype_type)
 
                     class_preds = self.classifier(all_crops, proposals, normalize=True, aggregation=aggregation)
+                    assert class_preds.shape == (len(all_crops), self.num_classes), (
+                        f"Expected {(len(all_crops), self.num_classes)}, got {class_preds.shape}"
+                    )
                     # print("class_preds shape:", class_preds.shape)
                     # print("num_classes:", self.num_classes)
                     # print(torch.argmax(class_preds, dim=1))

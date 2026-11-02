@@ -19,31 +19,57 @@ warnings.filterwarnings("ignore", message=".*antialias parameter.*")
 
 torch.backends.cudnn.benchmark = True
 
-def prepare_model(args):
-    '''
-    Loads the model to evaluate given the input arguments and returns it.
+# def prepare_model(args):
+#     '''
+#     Loads the model to evaluate given the input arguments and returns it.
     
-    Args:
-        args (argparse.Namespace): Input arguments
-    '''
+#     Args:
+#         args (argparse.Namespace): Input arguments
+#     '''
 
-    # Use GPU if available
-    if torch.cuda.is_available():
-        device = torch.device("cuda")
-    else:
-        device = torch.device("cpu")
+#     # Use GPU if available
+#     if torch.cuda.is_available():
+#         device = torch.device("cuda")
+#     else:
+#         device = torch.device("cpu")
         
-    # Load prototypes and background prototypes
-    prototypes = torch.load(args.prototypes_path)
-    print(f'Using object prototypes from {args.prototypes_path}')
-    bg_prototypes = torch.load(args.bg_prototypes_path) if args.bg_prototypes_path is not None else None
-    if args.bg_prototypes_path is not None:
-        print(f'Using background prototypes from {args.bg_prototypes_path}')
+#     # Load prototypes and background prototypes
+#     prototypes = torch.load(args.prototypes_path)
+#     print(f'Using object prototypes from {args.prototypes_path}')
+#     bg_prototypes = torch.load(args.bg_prototypes_path) if args.bg_prototypes_path is not None else None
+#     if args.bg_prototypes_path is not None:
+#         print(f'Using background prototypes from {args.bg_prototypes_path}')
     
-    if 'init' in args.prototype_type:
-        model = OVDDetector(prototypes, bg_prototypes, scale_factor=args.scale_factor, backbone_type=args.backbone_type, target_size=args.target_size, classification=args.classification, prototype_type=args.prototype_type).to(device)
-    else:
-        model = OVDCropDetector(prototypes, bg_prototypes, scale_factor=args.scale_factor, backbone_type=args.backbone_type, target_size=args.target_size, classification=args.classification, prototype_type=args.prototype_type).to(device)
+#     if 'init' in args.prototype_type:
+#         model = OVDDetector(prototypes, bg_prototypes, scale_factor=args.scale_factor, backbone_type=args.backbone_type, target_size=args.target_size, classification=args.classification, prototype_type=args.prototype_type, cls=args.cls).to(device)
+#     else:
+#         model = OVDCropDetector(prototypes, bg_prototypes, scale_factor=args.scale_factor, backbone_type=args.backbone_type, target_size=args.target_size, classification=args.classification, prototype_type=args.prototype_type).to(device)
+#     return model, device
+
+def prepare_model(args):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    prototypes = torch.load(args.prototypes_path, map_location="cpu")
+    bg_prototypes = (
+        torch.load(args.bg_prototypes_path, map_location="cpu")
+        if args.bg_prototypes_path else None
+    )
+
+    print(f'Using object prototypes from {args.prototypes_path}')
+
+    detector = OVDCropDetector if args.cls or 'init' not in args.prototype_type else OVDDetector
+
+    model = detector(
+        prototypes,
+        bg_prototypes,
+        scale_factor=args.scale_factor,
+        backbone_type=args.backbone_type,
+        target_size=args.target_size,
+        classification=args.classification,
+        prototype_type=args.prototype_type,
+        cls=args.cls
+    ).to(device).eval()
+
     return model, device
 
 def process_batch(detections, labels, iouv):
@@ -121,8 +147,8 @@ def eval_detection(args, model, val_dataloader, device):
     stats = []
     with torch.no_grad():
         for i, batch in tqdm(enumerate(val_dataloader), total=len(val_dataloader), leave=False):
-            # if i < 70:
-            #     continue
+            # if i > 10: # TODO debug
+            #     break
             if args.classification != 'mask':
                 images, boxes, labels, metadata = batch
 
@@ -287,6 +313,7 @@ if __name__ == '__main__':
     parser.add_argument('--conf_thres', type=float, default=0.1)
     parser.add_argument('--prototype_type', type=str, default='init_prototypes') #init_prototypes, coop_prototypes, text_prototypes (zeroshot)
     parser.add_argument('--sc', action='store_true', default=False)
+    parser.add_argument('--cls', action='store_true', default=False)
     #parser.add_argument('--metadata_json', type=str, required=False)
     args = parser.parse_args()
     main(args)

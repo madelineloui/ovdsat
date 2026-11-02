@@ -7,7 +7,7 @@ from utils_dir.backbones_utils import extract_backbone_features, load_backbone, 
 
 class OVDBaseClassifier(torch.nn.Module):
 
-    def __init__(self, prototypes, class_names, backbone_type='dinov2', target_size=(602,602), scale_factor=2, min_box_size=5, ignore_index=-1, prototype_type='init_prototypes'):
+    def __init__(self, prototypes, class_names, backbone_type='dinov2', target_size=(602,602), scale_factor=2, min_box_size=5, ignore_index=-1, prototype_type='init_prototypes', cls=False):
         super().__init__()
         self.scale_factor = scale_factor
         self.target_size = target_size
@@ -16,14 +16,16 @@ class OVDBaseClassifier(torch.nn.Module):
         self.backbone_type = backbone_type
         self.class_names = class_names
         self.prototype_type = prototype_type
+        self.cls=cls
         
         print(prototype_type)
         
         if isinstance(self.scale_factor, int):
             self.scale_factor = [self.scale_factor]
 
-        if 'init' in  self.prototype_type:
-            self.backbone = load_backbone(backbone_type)  
+        if 'dino' in backbone_type or ('init' in self.prototype_type and not self.cls):
+            self.backbone = load_backbone(backbone_type)
+            print('classifier debug 1')
         else:
             self.backbone = load_clip_to_cpu(backbone_type)
         
@@ -58,7 +60,7 @@ class OVDBaseClassifier(torch.nn.Module):
             embedding_batch = embeddings[start_idx:end_idx]  # Get a batch of embeddings
             
             ### Original dot product
-            if 'init' in self.prototype_type:
+            if 'init' in self.prototype_type and not self.cls:
                 # Reshape and broadcast for cosine similarity
                 B, K, D = feats.shape
                 features_reshaped = feats.view(B, 1, K, D)
@@ -80,7 +82,7 @@ class OVDBaseClassifier(torch.nn.Module):
                 feat_norm = feat_norm.float()
                 embed_norm = embed_norm.float()
                 
-                if 'text' in self.prototype_type:
+                if 'text' in self.prototype_type or self.cls:
                     # SIMILARITY
                     dot_product = feat_norm @ embed_norm.t()
                     dot_product = dot_product.transpose(1, 2)
@@ -118,8 +120,8 @@ class OVDBaseClassifier(torch.nn.Module):
 
 
 class OVDBoxClassifier(OVDBaseClassifier):
-    def __init__(self, prototypes, class_names, backbone_type='dinov2', target_size=(602,602), scale_factor=2, min_box_size=5, ignore_index=-1, prototype_type='init_prototypes'):
-        super().__init__(prototypes, class_names, backbone_type, target_size, scale_factor, min_box_size, ignore_index, prototype_type)
+    def __init__(self, prototypes, class_names, backbone_type='dinov2', target_size=(602,602), scale_factor=2, min_box_size=5, ignore_index=-1, prototype_type='init_prototypes', cls=False):
+        super().__init__(prototypes, class_names, backbone_type, target_size, scale_factor, min_box_size, ignore_index, prototype_type, cls)
         
     def forward(self, images, boxes, cls=None, normalize=False, return_cosim=False, aggregation='mean', k=10):
         '''
@@ -134,7 +136,7 @@ class OVDBoxClassifier(OVDBaseClassifier):
         scales = []
 
         for scale in self.scale_factor:
-            feats = extract_backbone_features(images, self.backbone, self.backbone_type, scale_factor=scale, prototype_type=self.prototype_type)
+            feats = extract_backbone_features(images, self.backbone, self.backbone_type, scale_factor=scale, prototype_type=self.prototype_type, cls=self.cls)
             cosine_sim = self.get_cosim_mini_batch(feats, self.embedding, normalize=normalize)
             scales.append(cosine_sim)
 
@@ -219,7 +221,7 @@ class OVDBoxCropClassifier(OVDBoxClassifier):
             end_idx = min(start_idx + batch_size, num_classes)
             embedding_batch = embeddings[start_idx:end_idx]  # Get a batch of embeddings
 
-            if 'init' in self.prototype_type:
+            if 'init' in self.prototype_type and not self.cls:
                 B, N, D = feats.shape
                 K = embedding_batch.shape[0]
 
@@ -267,7 +269,7 @@ class OVDBoxCropClassifier(OVDBoxClassifier):
         '''
         
         # Extract crop features
-        feats = extract_backbone_features(crops, self.backbone, self.backbone_type, prototype_type=self.prototype_type)
+        feats = extract_backbone_features(crops, self.backbone, self.backbone_type, prototype_type=self.prototype_type, cls=self.cls)
         
         # Get crop cosine sim
         box_similarities = self.get_cosim_mini_batch(feats, self.embedding, normalize=normalize)
